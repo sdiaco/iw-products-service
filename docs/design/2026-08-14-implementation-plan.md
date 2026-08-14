@@ -410,8 +410,26 @@ git commit -m "chore: add compose, image and make targets for the local stack"
 ### Task 0.3: Validated configuration
 
 **Files:**
-- Create: `src/config/env.schema.ts`, `src/config/config.module.ts`
+- Create: `jest.config.ts`, `src/config/env.schema.ts`, `src/config/config.module.ts`
 - Test: `test/unit/config/env.schema.spec.ts`
+
+- [ ] **Step 0: Write the unit-test Jest configuration**
+
+This is the first task with a unit test, so it is the task that brings Jest.
+
+```ts
+// jest.config.ts
+import type { Config } from 'jest';
+
+const config: Config = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/test/unit'],
+  collectCoverageFrom: ['src/**/*.ts'],
+};
+
+export default config;
+```
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1117,21 +1135,10 @@ async function bootstrap(): Promise<void> {
 void bootstrap();
 ```
 
-- [ ] **Step 5: Write the Jest configurations**
+- [ ] **Step 5: Write the end-to-end Jest configuration**
 
-```ts
-// jest.config.ts
-import type { Config } from 'jest';
-
-const config: Config = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/test/unit'],
-  collectCoverageFrom: ['src/**/*.ts'],
-};
-
-export default config;
-```
+`jest.config.ts` already exists — Task 0.3 brought it, since that is where the
+first unit test appeared. This task adds only its end-to-end counterpart.
 
 ```ts
 // jest.e2e.config.ts
