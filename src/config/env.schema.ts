@@ -1,6 +1,3 @@
-// Decorator metadata (used by class-validator/class-transformer) requires the
-// Reflect polyfill to be loaded before any decorated class is defined.
-import 'reflect-metadata';
 import { Type, plainToInstance } from 'class-transformer';
 import { IsEnum, IsInt, IsNotEmpty, IsString, Max, Min, validateSync } from 'class-validator';
 
