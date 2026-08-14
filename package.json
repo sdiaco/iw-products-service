@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "typecheck": "if [ -d src ] || [ -d test ] || [ -d db ]; then tsc --noEmit; else echo 'No source files yet — nothing to typecheck.'; fi",
+    "typecheck": "tsc --noEmit",
     "test": "jest --config jest.config.ts",
     "test:e2e": "jest --config jest.e2e.config.ts --runInBand",
     "migrate": "node db/umzug.ts up",

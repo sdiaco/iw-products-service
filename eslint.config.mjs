@@ -1,7 +1,8 @@
+import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import importX from 'eslint-plugin-import-x';
 
-export default tseslint.config(
+export default defineConfig(
   { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
   ...tseslint.configs.strictTypeChecked,
   {
