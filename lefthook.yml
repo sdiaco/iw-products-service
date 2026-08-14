@@ -1,0 +1,13 @@
+pre-push:
+  parallel: false
+  commands:
+    format:
+      run: pnpm format
+    lint:
+      run: pnpm lint
+    types:
+      run: pnpm typecheck
+    unit:
+      run: pnpm test
+    e2e:
+      run: pnpm test:e2e

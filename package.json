@@ -1,0 +1,50 @@
+{
+  "name": "products-service",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "nest build",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "typecheck": "if [ -d src ] || [ -d test ] || [ -d db ]; then tsc --noEmit; else echo 'No source files yet — nothing to typecheck.'; fi",
+    "test": "jest --config jest.config.ts",
+    "test:e2e": "jest --config jest.e2e.config.ts --runInBand",
+    "migrate": "node db/umzug.ts up",
+    "seed": "node db/seeds/products.seed.ts",
+    "prepare": "lefthook install || true"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.29",
+    "@nestjs/core": "11.1.29",
+    "@nestjs/platform-fastify": "11.1.29",
+    "@nestjs/swagger": "11.4.6",
+    "class-transformer": "^0.5.1",
+    "class-validator": "0.15.1",
+    "mysql2": "3.23.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sequelize": "6.37.8",
+    "umzug": "3.8.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/schematics": "^11.1.0",
+    "@nestjs/testing": "^11.2.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "24.13.3",
+    "@types/supertest": "^7.2.1",
+    "dotenv": "^17.4.2",
+    "eslint": "10.8.1",
+    "eslint-plugin-import-x": "^4.17.1",
+    "jest": "30.4.2",
+    "lefthook": "2.1.10",
+    "prettier": "3.9.6",
+    "supertest": "7.2.2",
+    "ts-jest": "29.4.12",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.67.0"
+  }
+}
