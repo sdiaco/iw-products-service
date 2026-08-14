@@ -17,7 +17,7 @@ the brief.
 
 The brief leaves two decisions open on purpose — stock update semantics and
 pagination style — and expects both to be chosen deliberately and documented.
-Section 3 records them.
+Sections 2 and 3 record them.
 
 A panel reads, questions and edits this code live for an hour. The tiebreaker
 for every decision below: **every line must be explainable in one sentence.**
@@ -490,7 +490,8 @@ mandating the internal layout instead: **every domain module has exactly
 ├── LIFECYCLE.md                 how the project was built, step by step
 ├── README.md                    prerequisites, run, test, one example per endpoint
 ├── .env.example                 every variable, no values
-├── docker-compose.yml           mysql + migrate (one-shot) + api
+├── docker-compose.yml           mysql + migrate (one-shot, seeds) + api
+├── Makefile                     up, test, seed, down — one command each
 ├── Dockerfile                   node:24-alpine, pnpm, multi-stage
 ├── eslint.config.mjs            flat config, typescript-eslint, import-x boundaries
 ├── jest.config.ts               unit, parallel, roots: test/unit
@@ -503,8 +504,10 @@ mandating the internal layout instead: **every domain module has exactly
 │   ├── migrations/
 │   │   ├── 20260814T1000-create-products.ts
 │   │   └── 20260814T1010-create-idempotency-keys.ts
-│   └── seeds/
-│       └── products.seed.ts
+│   ├── seeds/
+│   │   └── products.seed.ts
+│   └── init/
+│       └── 01-create-databases.sql   ecommerce + ecommerce_test, app user
 │
 ├── docs/                        versioned, for a reviewer
 │   ├── architecture.md          layers, modules, the path of one request
@@ -768,7 +771,61 @@ breaks "runs first try".
 
 ---
 
-## 10. Documentation
+## 10. Local environment
+
+The goal is one command from a clean clone. A reviewer with Docker and nothing
+else must reach a running, seeded, documented API.
+
+```
+docker compose up          # mysql, migrations, seed, api, Swagger on /docs
+make test                  # unit and e2e, inside the container
+docker compose down -v     # remove the volumes too
+```
+
+**Two paths, on purpose.** The container path is the reviewer's, and it needs
+only Docker. The host path is the inner development loop: `pnpm start:dev` and
+`pnpm test` against MySQL published on the host, which is faster to iterate and
+to debug. The lefthook `pre-push` gate uses the **host** path, because a hook
+that shells into Compose is slow and fails confusingly when the stack is down.
+Both paths are documented in the README; the container path is the one the
+README opens with.
+
+**Compose services.** `mysql` (8.4, healthcheck on `mysqladmin ping`) → `migrate`
+(one-shot, gated on `service_healthy`, runs the Umzug migrations and then the
+idempotent seed) → `api` (gated on `service_completed_successfully`).
+
+Seeding on startup is deliberate: a reviewer whose first `GET /products`
+returns an empty list learns nothing. The seed is idempotent, so restarting
+does not duplicate anything.
+
+**Details that decide whether the first run works.**
+
+- MySQL is published on **3307**, not 3306, because a developer machine very
+  often already has one. The port is a variable with a default.
+- Compose declares defaults inline (`${DB_PORT:-3307}`), so `docker compose up`
+  works with **no `.env` copied**. `.env.example` documents the overrides.
+- The bind mount that makes editing live would otherwise hide the modules
+  installed in the image; `/app/node_modules` is kept as an anonymous volume.
+- `ecommerce_test` is created by an init script in
+  `docker-entrypoint-initdb.d/`, which MySQL runs **only when the data volume
+  is first created**. Anyone with an older volume must run
+  `docker compose down -v`. The README says so, because a database that
+  silently lacks a schema is a confusing half-hour.
+- The application connects as a non-root user granted on both databases; root
+  stays for administration.
+- Dependencies are installed with `--ignore-scripts` in the image, so the
+  lefthook `prepare` script cannot fail a build where `.git` does not exist.
+
+**Tests.** `make test` runs the suite inside the `api` container against
+`ecommerce_test`, so a reviewer needs no local Node. Jest's `globalSetup`
+retries the connection, then runs the migrations; `beforeEach` truncates
+`idempotency_keys` before `products`, in that order, because of the foreign
+key. The e2e configuration runs `--runInBand`, since every file shares one
+database.
+
+---
+
+## 11. Documentation
 
 `docs/` is versioned and written for a reviewer, another engineer, or an agent.
 It is deliberately small: `architecture.md`, `api.md`, `design/` (this
@@ -786,7 +843,7 @@ files that are accurate beat eleven that are thin.
 
 ---
 
-## 11. Known risks
+## 12. Known risks
 
 - `@nestjs/swagger` with the Fastify adapter may require `@fastify/static` to
   serve its UI assets. If so, that is one more dependency to justify.
