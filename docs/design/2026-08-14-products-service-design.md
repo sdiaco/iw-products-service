@@ -400,45 +400,164 @@ statements, and a single statement is already atomic in InnoDB.
 
 ## 6. Architecture
 
-Three layers, one directory each, dependencies pointing inward, enforced by
-`import-x/no-restricted-paths`.
+The tree is organised **feature-first**: the root of `src/` is a map of the
+domains, and every domain module has the same three layers inside it. The
+alternative — `controllers/`, `services/`, `repositories/` at the root — was
+considered and rejected: a single change would spread across three trees, the
+NestJS module file would sit apart from the three things it wires, and an
+import from one domain into another's internals would become invisible. The
+standardisation people actually want from a layer-first tree is preserved by
+mandating the internal layout instead: **every domain module has exactly
+`controller/`, `service/` and `repository/`**, in this service and the next.
 
 ```
-src/
-  main.ts, app.module.ts
-  config/            env.schema.ts — validated at startup, fails fast
-  common/
-    errors/          domain-error.ts — the base every failure extends
-    http/            domain-exception.filter.ts — the single translation point
-    logging/         app-logger.ts — wraps the Nest logger, one place to change
-  health/            health.controller.ts
-  products/
-    products.module.ts
-    products.errors.ts
-    controller/      products.controller.ts, product.response.ts, dto/
-    service/         products.service.ts
-    repository/      product.model.ts, idempotency-key.model.ts,
-                     product.repository.ts, idempotency.repository.ts
-  database/          Sequelize factory providers, hand-wired
-
-db/
-  umzug.ts           migration runner, run by Node's native type stripping
-  migrations/
-  seeds/
-
-test/                e2e specs
-docs/                architecture, api, data model, testing, operations, ADRs
+.
+├── AGENTS.md                    engineering rules (conventions only)
+├── ASSESSMENT.md                how LIFECYCLE.md is kept
+├── CLAUDE.md                    entry point, imports the two above
+├── LIFECYCLE.md                 how the project was built, step by step
+├── README.md                    prerequisites, run, test, one example per endpoint
+├── .env.example                 every variable, no values
+├── docker-compose.yml           mysql + migrate (one-shot) + api
+├── Dockerfile                   node:24-alpine, pnpm, multi-stage
+├── eslint.config.mjs            flat config, typescript-eslint, import-x boundaries
+├── jest.config.ts               unit, parallel, roots: test/unit
+├── jest.e2e.config.ts           e2e, --runInBand, globalSetup
+├── tsconfig.json                strict, CommonJS
+├── .github/workflows/ci.yml     lint, typecheck, unit, e2e
+│
+├── db/
+│   ├── umzug.ts                 migration runner (node runs the .ts directly)
+│   ├── migrations/
+│   │   ├── 20260814T1000-create-products.ts
+│   │   └── 20260814T1010-create-idempotency-keys.ts
+│   └── seeds/
+│       └── products.seed.ts
+│
+├── docs/                        versioned, for a reviewer
+│   ├── README.md                index
+│   ├── architecture.md          layers, modules, the path of one request
+│   ├── api.md                   endpoints, examples, error catalogue
+│   ├── data-model.md            schema, constraints, migrations
+│   ├── testing.md               what unit and e2e prove, how to run them
+│   ├── operations.md            Compose, env, migrations, seeds
+│   ├── design/                  this document
+│   └── decisions/               0001-idempotency-key.md, 0002-atomic-stock-update.md,
+│                                0003-plain-sequelize.md, 0004-price-as-string.md,
+│                                0005-token-not-slug.md, 0006-typescript-version.md
+│
+├── notes/                       local only, excluded from git — study notes
+│
+├── src/
+│   ├── main.ts                  bootstrap, Fastify adapter, global pipe and filter
+│   ├── app.module.ts
+│   │
+│   ├── config/
+│   │   ├── env.schema.ts        validated at startup, fails fast
+│   │   └── config.module.ts
+│   │
+│   ├── common/
+│   │   ├── errors/                      one concept: how we fail, and how we say it
+│   │   │   ├── domain-error.ts          the base every failure extends
+│   │   │   ├── problem-details.ts       the RFC 9457 body shape
+│   │   │   └── domain-exception.filter.ts
+│   │   └── logging/
+│   │       └── app-logger.ts            wraps the Nest logger, one place to change
+│   │
+│   ├── database/
+│   │   ├── database.module.ts
+│   │   ├── database.providers.ts        hand-wired Sequelize factory
+│   │   └── database.tokens.ts           injection tokens
+│   │
+│   ├── health/
+│   │   ├── health.module.ts
+│   │   └── health.controller.ts
+│   │
+│   └── products/
+│       ├── products.module.ts
+│       ├── product.ts                   plain readonly type, shared by two layers
+│       ├── products.errors.ts           typed failures of this module
+│       ├── products.constants.ts        patterns, page defaults, INT_MAX
+│       │
+│       ├── controller/
+│       │   ├── products.controller.ts
+│       │   ├── product.response.ts      explicit outward shape, no id
+│       │   ├── idempotency-key.decorator.ts
+│       │   └── dto/
+│       │       ├── create-product.dto.ts
+│       │       ├── list-products.query.ts
+│       │       ├── product-token.param.ts
+│       │       └── update-stock.dto.ts
+│       │
+│       ├── service/
+│       │   └── products.service.ts      rules, orchestration, transaction owner
+│       │
+│       └── repository/
+│           ├── product.repository.ts        domain-shaped, Sequelize stays inside
+│           ├── idempotency.repository.ts
+│           └── models/
+│               ├── product.model.ts
+│               └── idempotency-key.model.ts
+│
+└── test/
+    ├── unit/                     mirrors src/
+    │   ├── common/errors/domain-exception.filter.spec.ts
+    │   ├── config/env.schema.spec.ts
+    │   └── products/
+    │       ├── products.controller.spec.ts
+    │       ├── idempotency-key.decorator.spec.ts
+    │       ├── products.service.spec.ts
+    │       ├── product.repository.spec.ts
+    │       └── idempotency.repository.spec.ts
+    └── e2e/
+        ├── setup/
+        │   ├── global-setup.ts   waits for MySQL, runs migrations
+        │   ├── app.factory.ts    boots Nest and awaits the Fastify instance
+        │   └── truncate.ts       idempotency_keys before products (foreign key)
+        ├── products.create.e2e-spec.ts
+        ├── products.list.e2e-spec.ts
+        ├── products.get.e2e-spec.ts
+        ├── products.delete.e2e-spec.ts
+        ├── products.stock.e2e-spec.ts
+        ├── products.stock-concurrency.e2e-spec.ts
+        └── health.e2e-spec.ts
 ```
 
-Rules:
+Four placement decisions worth stating:
 
-- The controller parses, validates and formats; it never reaches the repository
+- **The repository is a concrete class, injected directly.** An abstract port
+  with a single implementation that will never have a second is cost without
+  benefit. What preserves the dependency inversion is not the extra file but
+  the *shape of the methods*: the repository speaks domain
+  (`findByToken`, `applyStockDelta`) and never ORM (`update(where, values)`),
+  so replacing Sequelize rewrites one class body and the service does not
+  recompile. Two lint rules make that a constraint rather than a promise — see
+  the rules below.
+- **Types live with the layer that owns them.** `ProductResponse` in
+  `controller/` because it is the transport shape, `ProblemDetails` in
+  `common/errors/` because it is the error shape, and `product.ts` at the
+  module root because it is shared by the service and the repository and
+  belongs to neither. There is no `types/` directory: grouping by language
+  construct separates a type from the code that produces it.
+- **`common/errors/` holds the base error, the problem body and the filter.**
+  They are one concept — how we fail and how we report it — and the previous
+  split into `errors/` and `http/` was a directory created by mechanism rather
+  than by meaning.
+- **Tests live under `test/`, mirroring `src/`.** `src/` stays production code
+  only, and the unit and end-to-end boundary is visible from the root. The cost
+  is keeping two trees aligned by hand, accepted deliberately.
+
+Rules, all enforced by ESLint:
+
+- The controller parses, validates and formats; it never imports `repository/`
   and holds no business rules.
 - The service holds the rules and owns transactions; it knows nothing about
   HTTP — no request objects, no status codes.
-- The repository is injected as an abstract class used as a DI token, so the
-  service depends on an abstraction and the Sequelize implementation is
-  substitutable.
+- A repository's public signatures are expressed in domain terms. No ORM type
+  (`Model`, `WhereOptions`, `FindOptions`) appears in a parameter or a return
+  value; the transaction handle is the single, deliberate exception.
+- `sequelize` may only be imported under `repository/` and `database/`
+  (`no-restricted-imports`). The ORM cannot leak upward even by accident.
 - Sequelize models never leave the repository. The repository returns a plain
   readonly type; the controller maps that to `ProductResponse`, which never
   contains `id`.
@@ -469,6 +588,9 @@ Rules:
 ---
 
 ## 8. Testing
+
+Specs live under `test/`, with `test/unit/` mirroring `src/` and `test/e2e/`
+holding the end-to-end suite and its setup.
 
 ### Unit
 
@@ -570,3 +692,11 @@ commands and one sample request and response per endpoint, as the brief asks.
   decision.
 - `available` in a `409` is advisory. Documented at the contract level so no
   client treats it as a reservation.
+- Changing SQL engine is confined to `repository/` and `db/migrations/`. The
+  constraints this design relies on — the atomic conditional update,
+  `ON DELETE CASCADE`, `CHECK`, `SELECT ... FOR UPDATE`, multi-statement
+  transactions — exist across engines. What would change is the driver error
+  translation (`ER_DUP_ENTRY` has a different code elsewhere) and engine
+  specifics in the DDL: the explicit case-sensitive collation, `DATETIME(3)`,
+  the `JSON` column type. The service is untouched, which is what the boundary
+  is for.

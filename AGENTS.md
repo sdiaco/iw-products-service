@@ -31,6 +31,20 @@ state that in the commit.
 
 ## 2. Architecture
 
+**Layout.** The tree is organised feature-first: the root of `src/` is a map of
+the domains, not of the layers. Every domain module `MUST` contain exactly
+`controller/`, `service/` and `repository/`, so the internal shape is the same
+in every module and in every service. Cross-cutting code lives outside the
+domain modules (`common/`, `config/`, `database/`).
+
+Grouping directories by language construct or by framework mechanism —
+`types/`, `interfaces/`, `filters/` — `MUST NOT` be used. A type lives with the
+layer that owns it; a type shared by two layers of one module lives at that
+module's root. Ambient declarations (`*.d.ts`) are the only exception, since
+they belong to no layer.
+
+**Boundaries.**
+
 - Layer boundaries `MUST` be enforced by tooling, not by discipline alone
   (`import-x/no-restricted-paths`). A rule nobody can break by accident is
   worth more than a rule written down.
@@ -39,8 +53,19 @@ state that in the commit.
   codes.
 - Persistence models `MUST NOT` be serialised outward. Responses are explicit
   types listing their fields, so a new column cannot leak into the API.
-- Dependencies `MUST` be injected, never constructed inline, and `SHOULD` be
-  depended upon through an abstraction rather than a concrete class.
+- The ORM `MUST NOT` be importable outside the data-access layer
+  (`no-restricted-imports`).
+- A repository's public signatures `MUST` be expressed in domain terms.
+  `applyStockDelta(token, delta, tx)` is a boundary; `update(where, values)` is
+  the ORM wearing a different name. The transaction handle is the single
+  deliberate exception.
+
+**Dependencies.**
+
+- Dependencies `MUST` be injected, never constructed inline.
+- A dependency `SHOULD` be depended upon as a concrete class until a second
+  implementation exists. An abstract port with one implementer buys nothing
+  that the shape of its methods and a lint rule do not already buy.
 - A new abstraction `MUST` be explainable in one sentence. An interface with a
   single implementation and no second use case is a cost, not a design.
 
@@ -116,7 +141,9 @@ type-encoding in names. One concept keeps one name across every layer.
 
 ## 9. Testing
 
-- Tests live alongside code (unit: `*.spec.ts` beside the source; e2e: `test/`).
+- Tests live under `test/`, split into `test/unit/` and `test/e2e/`. The unit
+  tree mirrors `src/`, so `src/` holds production code only and the two kinds
+  of test are told apart from the root.
 - A unit test isolates its unit: I/O collaborators are substituted, pure ones
   are left real.
 - End-to-end tests run real migrations against a real database. `sync()`
