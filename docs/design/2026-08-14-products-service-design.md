@@ -204,7 +204,7 @@ GET /health
 ```
 
 `200 OK` with `{ "status": "ok" }` after a successful `SELECT 1`, otherwise
-`503` with `code` `DATABASE_UNAVAILABLE`. Compose and CI wait on this endpoint.
+`503` with `code` `DATABASE_UNAVAILABLE`. Compose waits on this endpoint.
 
 ### 3.7 Error body
 
@@ -496,7 +496,7 @@ mandating the internal layout instead: **every domain module has exactly
 ├── jest.config.ts               unit, parallel, roots: test/unit
 ├── jest.e2e.config.ts           e2e, --runInBand, globalSetup
 ├── tsconfig.json                strict, CommonJS
-├── .github/workflows/ci.yml     lint, typecheck, unit, e2e
+├── lefthook.yml                 pre-push gate: lint, typecheck, unit, e2e
 │
 ├── db/
 │   ├── umzug.ts                 migration runner (node runs the .ts directly)
@@ -722,6 +722,11 @@ database can prove it.
   without ever exercising the race.
 - `globalSetup` retries the connection before running migrations, because
   MySQL accepts TCP before it accepts queries.
+- The whole suite is gated on `pre-push` by lefthook: format check, ESLint,
+  `tsc --noEmit`, unit and end-to-end. One gate rather than three, at the
+  moment the work leaves the machine. It is not a substitute for a pipeline —
+  a hook runs on the author's machine and yields to `--no-verify` — and that
+  is stated rather than glossed over.
 - Coverage is reported, not gated. An arbitrary threshold is harder to defend
   than the edge cases themselves.
 
@@ -744,11 +749,22 @@ Versions verified against the npm registry on 2026-08-14, not from memory.
 | class-validator | 0.15.1 | |
 | `@nestjs/swagger` | 11.4.6 | Serves `/docs`. May need `@fastify/static` for its assets — to confirm on first run. |
 | ESLint / Prettier | 10.8.1 / 3.9.6 | Flat config, `import-x` for boundaries. |
+| lefthook | 2.1.10 | One `pre-push` gate. Installed by a `prepare` script. |
 | pnpm | 10 | |
 
 Everything runs through Docker Compose: `mysql`, a one-shot `migrate` service
 gated on the database healthcheck, and `api` gated on migrations completing.
-CI is one GitHub Actions job: lint, typecheck, unit, e2e.
+
+There is no pipeline. The quality gate is local, on `pre-push`, which is a
+deliberate trade: with three days, the reviewer's own `docker compose up` is
+the check that matters, and a pipeline can be added later in about thirty lines.
+
+One trap to avoid: lefthook installs itself from a `prepare` script, which
+`pnpm install` also runs **inside the Docker build**, where there is no `.git`
+directory and the command fails, taking the image build with it. The
+installation must be non-fatal there, or dependencies must be installed with
+`--ignore-scripts` in the image. This is precisely the kind of detail that
+breaks "runs first try".
 
 ---
 
