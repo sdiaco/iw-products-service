@@ -23,7 +23,8 @@ export default defineConfig(
           paths: [
             {
               name: 'sequelize',
-              message: 'The ORM may only be imported under repository/ or database/.',
+              message:
+                'The ORM may only be imported under src/**/repository/, src/database/, db/ or test/.',
             },
           ],
         },

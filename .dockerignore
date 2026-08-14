@@ -4,3 +4,4 @@ coverage
 .git
 notes
 assessment
+.env
