@@ -17,6 +17,12 @@ export default defineConfig(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
+      // NestJS module/controller/service classes are decorator-driven and
+      // legitimately have no members — the DI decorator is the class's purpose.
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+      // Destructuring a key out of an object to omit it (`const { a, ...rest } = obj`)
+      // leaves the extracted binding unused by design; this is not a real dead variable.
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       'no-restricted-imports': [
         'error',
         {
