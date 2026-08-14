@@ -33,17 +33,19 @@ decisions, six endpoints with their error catalogue, DTOs, the DDL for
 `products` and `idempotency_keys`, the stock update flow step by step, the test
 plan, and the pinned stack.
 
-**Why** The brief leaves stock semantics and pagination open, so I chose a
-signed delta and `page`/`size`. Delta because it models the real event and
-makes the atomic update and the idempotency key necessary rather than
-decorative. I rejected a slug-shaped `productToken` — identity and presentation
-are different concerns — and I pinned TypeScript 5.9 rather than the current
-7.0 because `typescript-eslint` and `ts-jest` both declare peer ranges that
-exclude it.
+**Why** The brief leaves stock semantics and pagination open: I chose a signed
+delta and `page`/`size`. Delta models the real event and makes the atomic
+update and the idempotency key necessary rather than decorative. I kept the
+tree feature-first and rejected `controllers/` at the root — it splits one
+change across three trees — but mandated the same three layers inside every
+module, which is the standardisation I actually wanted. I dropped the abstract
+repository port: with one implementation, the real boundary is the shape of the
+methods plus a lint rule confining the ORM. I pinned TypeScript 5.9 over 7.0
+because `typescript-eslint` and `ts-jest` both exclude it.
 
-**AI** I ran the analysis as a question-driven session with Claude, deciding
-each fork myself. It caught the unsigned-arithmetic problem on `stock` and the
-snapshot read under `REPEATABLE READ`; I verified both. I asked for a critical
-review at every step and rejected the parts that were over-built.
+**AI** I ran this as a question-driven session with Claude and decided each
+fork myself. It caught the unsigned-arithmetic problem on `stock` and the
+snapshot read under `REPEATABLE READ`; I verified both. I pushed back on the
+first structure it proposed and we cut it down.
 
 **Next** Implementation plan, then the first vertical slice.
