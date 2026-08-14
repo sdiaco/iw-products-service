@@ -110,6 +110,10 @@ GET /products?page=1&size=20
 page past the last one returns `200` with an empty `data` array — an empty
 result is not an error.
 
+Offset pagination drifts: a product created between two requests shifts the
+items and one can be seen twice or missed. That is inherent to offsets, not a
+defect to fix here — a keyset cursor would solve it and is out of scope.
+
 Errors: `400 VALIDATION_FAILED`.
 
 ### 3.3 Get one product
@@ -154,6 +158,14 @@ Errors:
 | 409 | `STOCK_LIMIT_EXCEEDED` | The delta would take stock past the `INT` maximum |
 | 409 | `IDEMPOTENCY_KEY_REUSE` | The same key was used with a different payload |
 | 409 | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | The same key is currently being processed |
+| 409 | `CONCURRENT_MODIFICATION` | A lock wait timed out or a deadlock was resolved against this transaction |
+
+`delta` must be a JSON number. `"delta": "5"` is rejected: accepting a numeric
+string would mean guessing, and the client is the one who knows what it meant.
+
+`CONCURRENT_MODIFICATION` carries `Retry-After: 1`. The transaction was rolled
+back and the idempotency record with it, so retrying is safe — the same key can
+be sent again.
 
 ### 3.5 Delete a product
 
@@ -208,6 +220,22 @@ remains retrying the delta and handling `409` again.
 Responses never expose stack traces, SQL, or schema details. Unmapped errors
 surface as a generic `500`.
 
+**Every** error leaves in this shape, including the ones the service does not
+raise itself. Malformed JSON, an unknown route, a wrong method and a missing
+`Content-Type` are produced by Fastify and Nest, so a filter registered for
+domain errors alone would never see them and the API would answer in two
+different error formats. The filter is therefore registered for everything and
+branches on what it caught: a `DomainError` carries its own status and code, an
+`HttpException` keeps its status and is given a code, anything else becomes a
+`500`.
+
+Two failures come from the driver rather than from a rule, and are translated
+in the repository like any other: a lock wait timeout or a deadlock
+(`ER_LOCK_WAIT_TIMEOUT`, `ER_LOCK_DEADLOCK`) becomes
+`409 CONCURRENT_MODIFICATION`, and a connection failure becomes
+`503 DATABASE_UNAVAILABLE`. Both are the client's cue to retry, and saying so
+is more useful than a generic `500`.
+
 ### 3.8 DTOs
 
 Four input DTOs, one response type, one paginated wrapper. Every field carries
@@ -222,6 +250,7 @@ export class CreateProductDto {
   readonly productToken!: string;
 
   @ApiProperty({ example: 'Blue cotton shirt' })
+  @Transform(trim)                         // before the length check
   @IsString()
   @Length(1, 255)
   readonly name!: string;
@@ -267,10 +296,15 @@ The `price` pattern encodes the column: `DECIMAL(10,2)` allows eight integer
 digits and two decimals, so a third decimal is a `400` rather than a silent
 rounding of someone's money.
 
+`name` is trimmed before it is measured, so a value of only whitespace fails
+`@Length(1, 255)` instead of creating a product whose name is three spaces.
+
 The `Idempotency-Key` header is read by a custom `@IdempotencyKey()` parameter
 decorator that validates it against `^[A-Za-z0-9_.:-]{8,255}$` and raises the
 same `400` as any other invalid input. It is a parameter decorator rather than
-a header DTO so the rule lives in one testable place.
+a header DTO so the rule lives in one testable place. It also rejects a
+repeated header: sending `Idempotency-Key` twice yields a list rather than a
+string, and a list is not a promise about one operation.
 
 Outbound:
 
@@ -345,9 +379,25 @@ Notes:
 - Schema is created by Umzug migrations. `sequelize.sync()` is never used, in
   application code or in tests.
 
-Retention of `idempotency_keys` is 24 hours by convention. Purging is not
-implemented — it belongs to a scheduled job outside this service, and is
-recorded here so its absence is a decision rather than an oversight.
+**Retention of `idempotency_keys` is 24 hours, and the rule is enforced when
+reading.** A record older than the window is treated as absent, so the request
+is executed rather than replayed. A legitimate retry arrives within seconds —
+it is a failed HTTP call, not a human decision — so the window is three orders
+of magnitude wider than it needs to be.
+
+Deleting the expired rows is a separate concern and is **not implemented**. At
+roughly 0.5 KB per row, a hundred thousand stock updates a day is about 50 MB a
+day, which has to be reclaimed eventually. The statement is one line and
+belongs on a schedule, not inside an HTTP service:
+
+```sql
+DELETE FROM idempotency_keys
+ WHERE createdAt < NOW(3) - INTERVAL 24 HOUR
+ LIMIT 10000;
+```
+
+It is documented in `docs/operations.md` so its absence is a decision rather
+than an oversight.
 
 ---
 
@@ -363,7 +413,9 @@ most likely to read closely.
    requests differing only in JSON key order hash the same.
 3. Look up the product by token to obtain its `id`. Absent → `404`.
 4. Open a transaction. Everything below runs inside it.
-5. Read the idempotency record for the key.
+5. Read the idempotency record for the key, restricted to the retention window
+   (`createdAt > NOW(3) - INTERVAL 24 HOUR`); an older record is treated as
+   absent.
    - Record with a stored response, matching hash → **replay** it verbatim.
    - Record with a stored response, different hash → `409 IDEMPOTENCY_KEY_REUSE`.
    - Record without a stored response → `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`.
@@ -567,6 +619,9 @@ Rules, all enforced by ESLint:
 - Idempotency lives in the products service, in the same transaction as the
   update. Moving it to an interceptor would put it outside that transaction
   and open the exact window it exists to close.
+- The application shuts down on purpose: `enableShutdownHooks()` on the Nest
+  app, `SIGTERM` closing the HTTP server before the Sequelize pool, so a
+  container stop drains in-flight requests instead of severing them.
 
 ---
 
@@ -606,8 +661,9 @@ Two levels, each isolated from its own I/O collaborator:
   error; the mapper drops `id`; the offset is derived from page and size; the
   conditional `WHERE` carries both bounds.
 - **Filter** — a domain error becomes a `problem+json` body with the right
-  status; an unknown error becomes a `500` with no internals; a validation
-  failure carries `errors[]`.
+  status; a framework `HttpException` keeps its status and gains a code; an
+  unknown error becomes a `500` with no internals; a validation failure carries
+  `errors[]`.
 
 ### End-to-end
 
@@ -622,6 +678,11 @@ the delta applied once**; the same key with a different payload; insufficient
 stock leaving the row untouched; **twenty parallel `delta: -1` requests against
 stock 10 returning exactly ten `200`s and ten `409`s, ending at zero**; delete
 then get; cascade removing the product's keys; health.
+
+Three cases exist to prove the contract has no second shape: **malformed JSON**,
+**an unknown route** and **a name made only of whitespace** must all answer in
+`problem+json`, the first two coming from the framework rather than from our
+code and the third from the trim happening before the length check.
 
 The concurrency test is the one that proves the design, and only a real
 database can prove it.
@@ -692,6 +753,9 @@ commands and one sample request and response per endpoint, as the brief asks.
   decision.
 - `available` in a `409` is advisory. Documented at the contract level so no
   client treats it as a reservation.
+- Expired idempotency records are never deleted. The retention rule is enforced
+  when reading, so behaviour is correct, but the table grows until someone runs
+  the statement in `docs/operations.md` on a schedule.
 - Changing SQL engine is confined to `repository/` and `db/migrations/`. The
   constraints this design relies on — the atomic conditional update,
   `ON DELETE CASCADE`, `CHECK`, `SELECT ... FOR UPDATE`, multi-statement
