@@ -99,8 +99,8 @@ and serves `GET /health`, and `make test` runs a green (nearly empty) suite.
 ### Task 0.1: Project skeleton and tooling
 
 **Files:**
-- Create: `package.json`, `tsconfig.json`, `.prettierrc`, `eslint.config.mjs`,
-  `lefthook.yml`, `.gitignore`, `.dockerignore`
+- Create: `package.json`, `tsconfig.json`, `tsconfig.build.json`, `.prettierrc`,
+  `eslint.config.mjs`, `lefthook.yml`, `.gitignore`, `.dockerignore`
 
 - [ ] **Step 1: Initialise the package and install dependencies**
 
@@ -169,6 +169,28 @@ Docker build, where there is no `.git` directory and lefthook exits non-zero.
   "exclude": ["node_modules", "dist"]
 }
 ```
+
+- [ ] **Step 3b: Write `tsconfig.build.json`**
+
+The configuration above spans three sibling directories, so TypeScript infers
+the repository root as the common source root and emits `dist/src/main.js` —
+and `start:prod` runs `node dist/main.js`. A second, narrower configuration is
+what `nest build` uses, and it is the one that decides the output layout.
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "db", "**/*.spec.ts"]
+}
+```
+
+Setting `rootDir` on the wide configuration instead would fail with `TS6059`,
+because `test/` and `db/` sit outside it — and they must stay covered by
+`pnpm typecheck`.
 
 - [ ] **Step 4: Write `eslint.config.mjs`**
 
