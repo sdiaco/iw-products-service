@@ -714,10 +714,13 @@ database can prove it.
 
 - A dedicated `ecommerce_test` database, so tests can never truncate
   development data or seeds.
-- `TRUNCATE` in `beforeEach`, `idempotency_keys` before `products` because the
-  foreign key forbids the other order. No `sync()`, no transaction-wrapped
-  tests: the code under test opens its own transactions and wrapping them
-  would falsify the locking behaviour the concurrency test depends on.
+- `DELETE` in `beforeEach`, `idempotency_keys` before `products`. Not
+  `TRUNCATE`: MySQL refuses to truncate a table referenced by a foreign key at
+  all, even when the referencing table is empty. The auto-increment is reset
+  explicitly so ids stay predictable across tests. No `sync()`, and no
+  transaction-wrapped tests: the code under test opens its own transactions and
+  wrapping them would falsify the locking behaviour the concurrency test
+  depends on.
 - The e2e Jest config runs `--runInBand`. Files share one database, so
   parallel workers would truncate each other's data. Unit tests stay parallel.
 - The test connection pool allows at least twenty connections. With the default
