@@ -38,7 +38,12 @@ Deliberately excluded; adding any of these requires an ADR.
 AuthN/AuthZ · rate limiting, CORS, security headers · message brokers and event
 streaming · caching · request correlation and per-request logging · a stock
 movement ledger · sort and filter parameters on the list endpoint · updating
-`name` or `price` · soft delete · multi-currency.
+`name` or `price` · soft delete · multi-currency · URL versioning · purging
+expired idempotency records.
+
+The brief calls this a microservice. It is a single, ordinary NestJS HTTP
+service with one module, which is what the scope asks for; the word does not
+buy a broker or a second transport.
 
 ---
 
@@ -61,6 +66,9 @@ movement ledger · sort and filter parameters on the list endpoint · updating
 | 13 | Delete is a **hard delete** | Soft delete would need a filter on every query and would collide with the unique constraint on recreated tokens — real cost, no benefit in scope. |
 | 14 | The repository returns a **plain readonly type**, not a Sequelize model | Returning the model would hand the service `.save()` and `.destroy()`, letting it bypass its own repository. |
 | 15 | Plain `sequelize`, **no `@nestjs/sequelize`** | The brief asks for the `sequelize` package, and hand-written providers show dependency injection rather than hiding it. |
+| 16 | The list is always ordered by `id ASC` | Without an explicit order, paginated results are not stable and two pages can repeat or skip a row. |
+| 17 | The stock transaction lowers `innodb_lock_wait_timeout` to 3s | The default is 50 seconds, so a contended request would hold a connection and time out at the client before the 409 it is supposed to receive. |
+| 18 | URLs are **not versioned** | The consumer is internal and deploys with the service, so the contract is evolved additively; a version would name the present rather than protect a client we cannot upgrade. |
 
 ---
 
@@ -110,9 +118,17 @@ GET /products?page=1&size=20
 page past the last one returns `200` with an empty `data` array — an empty
 result is not an error.
 
-Offset pagination drifts: a product created between two requests shifts the
-items and one can be seen twice or missed. That is inherent to offsets, not a
-defect to fix here — a keyset cursor would solve it and is out of scope.
+The list is ordered by `id ASC`. This is not a feature, it is correctness:
+without an `ORDER BY`, MySQL may return rows in any order and the order may
+differ between two requests, so page 1 and page 2 could repeat a product or
+skip one with the database standing still. The primary key is already indexed,
+so the ordering costs nothing, and `id` stays internal — it orders the rows
+without appearing in the response. A client-controlled sort parameter remains
+out of scope.
+
+Offset pagination still drifts: a product created between two requests shifts
+the items and one can be seen twice or missed. That is inherent to offsets, not
+a defect to fix here — a keyset cursor would solve it and is out of scope.
 
 Errors: `400 VALIDATION_FAILED`.
 
@@ -412,7 +428,11 @@ most likely to read closely.
    serialised from the validated DTO with its keys in a fixed order, so two
    requests differing only in JSON key order hash the same.
 3. Look up the product by token to obtain its `id`. Absent → `404`.
-4. Open a transaction. Everything below runs inside it.
+4. Open a transaction and set `innodb_lock_wait_timeout = 3` on the session.
+   InnoDB waits fifty seconds by default, so a contended request would hold a
+   pooled connection until the client had already given up; three seconds turns
+   the wait into the `409` it is meant to be. Everything below runs inside the
+   transaction.
 5. Read the idempotency record for the key, restricted to the retention window
    (`createdAt > NOW(3) - INTERVAL 24 HOUR`); an older record is treated as
    absent.
@@ -487,16 +507,12 @@ mandating the internal layout instead: **every domain module has exactly
 │       └── products.seed.ts
 │
 ├── docs/                        versioned, for a reviewer
-│   ├── README.md                index
 │   ├── architecture.md          layers, modules, the path of one request
 │   ├── api.md                   endpoints, examples, error catalogue
-│   ├── data-model.md            schema, constraints, migrations
-│   ├── testing.md               what unit and e2e prove, how to run them
-│   ├── operations.md            Compose, env, migrations, seeds
 │   ├── design/                  this document
-│   └── decisions/               0001-idempotency-key.md, 0002-atomic-stock-update.md,
-│                                0003-plain-sequelize.md, 0004-price-as-string.md,
-│                                0005-token-not-slug.md, 0006-typescript-version.md
+│   └── decisions/               0001-idempotency-key.md
+│                                0002-atomic-stock-update.md
+│                                0003-plain-sequelize.md
 │
 ├── notes/                       local only, excluded from git — study notes
 │
@@ -635,6 +651,9 @@ Rules, all enforced by ESLint:
   strings, no untyped objects.
 - `DomainExceptionFilter` is the only place a domain error becomes an HTTP
   status. Unmapped errors become a generic `500` and are logged.
+- Logging follows the responsibility: a `4xx` is the client's mistake and is
+  not logged as a service error; a `5xx` is ours and is logged with its stack.
+  Request bodies, tokens and prices are never logged.
 - Driver errors are translated in the repository: `ER_DUP_ENTRY` on
   `products.productToken` becomes `ProductTokenAlreadyExists`, a foreign key
   violation on `idempotency_keys` becomes `ProductNotFound`. The layer that
@@ -673,6 +692,7 @@ first request, or routes are not yet registered.
 
 Cases: the five endpoints on the happy path; duplicate token; invalid payloads
 (three decimal places, short token, unknown field); a page past the last one;
+**two pages of a seeded catalogue containing every product exactly once**;
 `PATCH` without the header; **a retried key replaying the same response with
 the delta applied once**; the same key with a different payload; insufficient
 stock leaving the row untouched; **twenty parallel `delta: -1` requests against
@@ -734,14 +754,19 @@ CI is one GitHub Actions job: lint, typecheck, unit, e2e.
 
 ## 10. Documentation
 
-`docs/` is versioned and written for a reviewer, another engineer, or an agent:
-`architecture.md`, `api.md`, `data-model.md`, `testing.md`, `operations.md`,
-`design/` (this document) and `decisions/` (numbered ADRs for idempotency, the
-atomic update, plain Sequelize, price as a string, token versus slug, and the
-TypeScript pin).
+`docs/` is versioned and written for a reviewer, another engineer, or an agent.
+It is deliberately small: `architecture.md`, `api.md`, `design/` (this
+document) and three ADRs — idempotency, the atomic stock update, and plain
+Sequelize. Operations and testing are sections of the README and of
+`architecture.md` rather than files of their own, and Swagger already carries
+most of what an endpoint reference would repeat.
 
-The README stays short and links into `docs/`, and carries the setup, the test
-commands and one sample request and response per endpoint, as the brief asks.
+The README is the front door: prerequisites, one command to run, one command to
+test, the two decisions the brief leaves open, and a sample request and
+response per endpoint, as the brief asks.
+
+Every additional document is surface to keep true and to defend out loud. Four
+files that are accurate beat eleven that are thin.
 
 ---
 
