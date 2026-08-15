@@ -10,13 +10,20 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { ProductsService } from '../service/products.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { ListProductsQuery } from './dto/list-products.query';
-import { ProductTokenParam } from './dto/product-token.param';
-import { UpdateStockDto } from './dto/update-stock.dto';
+import { IdempotencyKey } from './idempotency.decorator';
+import { CreateProductDto } from './dto/create-product';
+import { ListProductsQuery } from './dto/list-products';
+import { ProductTokenParam } from './dto/product-token';
+import { UpdateStockDto } from './dto/update-stock';
 import { ProductResponse, type DataResponse, type PagedResponse } from './product.response';
 
 @ApiTags('products')
@@ -57,12 +64,14 @@ export class ProductsController {
   }
 
   @Patch(':productToken/stock')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
   @ApiOkResponse({ type: ProductResponse })
   async changeStock(
     @Param() params: ProductTokenParam,
     @Body() dto: UpdateStockDto,
+    @IdempotencyKey() idempotencyKey: string,
   ): Promise<DataResponse<ProductResponse>> {
-    const product = await this.products.changeStock(params.productToken, dto.delta);
+    const product = await this.products.changeStock(params.productToken, dto.delta, idempotencyKey);
     return { data: ProductResponse.from(product) };
   }
 }

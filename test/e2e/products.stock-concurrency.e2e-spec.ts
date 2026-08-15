@@ -38,8 +38,11 @@ describe('concurrent stock decrements', () => {
     });
 
     const responses = await Promise.all(
-      Array.from({ length: 20 }, () =>
-        request(app.getHttpServer()).patch('/products/SKU-000123/stock').send({ delta: -1 }),
+      Array.from({ length: 20 }, (_unused, index) =>
+        request(app.getHttpServer())
+          .patch('/products/SKU-000123/stock')
+          .set('Idempotency-Key', `concurrent-${String(index).padStart(4, '0')}`)
+          .send({ delta: -1 }),
       ),
     );
 

@@ -34,6 +34,7 @@ describe('PATCH /products/:productToken/stock', () => {
   it('applies a negative delta', async () => {
     const response = await request(app.getHttpServer())
       .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', 'stock-test-key-0001')
       .send({ delta: -3 });
     expect(response.status).toBe(200);
     expect((response.body as DataResponse<StockData>).data.stock).toBe(7);
@@ -42,6 +43,7 @@ describe('PATCH /products/:productToken/stock', () => {
   it('refuses to go below zero and leaves the row untouched', async () => {
     const response = await request(app.getHttpServer())
       .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', 'stock-test-key-0002')
       .send({ delta: -11 });
     expect(response.status).toBe(409);
     expect((response.body as ProblemDetail).code).toBe('INSUFFICIENT_STOCK');
@@ -54,6 +56,7 @@ describe('PATCH /products/:productToken/stock', () => {
   it('rejects a zero delta', async () => {
     const response = await request(app.getHttpServer())
       .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', 'stock-test-key-0003')
       .send({ delta: 0 });
     expect(response.status).toBe(400);
   });
@@ -61,6 +64,7 @@ describe('PATCH /products/:productToken/stock', () => {
   it('rejects a delta sent as a string', async () => {
     const response = await request(app.getHttpServer())
       .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', 'stock-test-key-0004')
       .send({ delta: '5' });
     expect(response.status).toBe(400);
   });
@@ -68,6 +72,7 @@ describe('PATCH /products/:productToken/stock', () => {
   it('answers 404 for a product that does not exist', async () => {
     const response = await request(app.getHttpServer())
       .patch('/products/SKU-999999/stock')
+      .set('Idempotency-Key', 'stock-test-key-0005')
       .send({ delta: -1 });
     expect(response.status).toBe(404);
   });
