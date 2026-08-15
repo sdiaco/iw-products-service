@@ -35,17 +35,15 @@ decisions, six endpoints with their error catalogue, DTOs, the DDL, the stock
 update flow step by step, the test plan and the pinned stack.
 
 **Why** The brief leaves stock semantics and pagination open: I chose a signed
-delta and `page`/`size`. Delta models the real event and makes the atomic
-update and the idempotency key necessary rather than decorative. I kept the
-tree feature-first — `controllers/` at the root splits one change across three
-trees — with the same three layers mandated inside every module. I dropped the
-abstract repository port: the real boundary is the method shape plus a lint
-rule confining the ORM.
+delta and `page`/`size`. Delta models the real event, which makes atomicity and
+the idempotency key necessary rather than decorative. I kept the tree
+feature-first — `controllers/` at the root splits one change across three trees
+— with the same three layers inside every module. I dropped the abstract
+repository port: the boundary is the method shape plus a lint rule.
 
 **AI** A question-driven session with Claude; I decided each fork myself. It
 caught the unsigned-arithmetic problem on `stock` and the snapshot read under
-`REPEATABLE READ`, and I verified both. I cut down the first structure it
-proposed.
+`REPEATABLE READ`, and I verified both.
 
 **Next** Implementation plan, then the first vertical slice.
 
