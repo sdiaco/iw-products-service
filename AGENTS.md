@@ -24,10 +24,15 @@ recommended, deviations require justification. RFC 2119.
 |---|---|
 | **Always proceed** | Writing code and tests, refactoring within a file, fixing failing code, naming improvements |
 | **Ask first** | DB schema changes, adding or upgrading dependencies, build and CI config, a new architectural layer, altering a public contract, deleting a test |
-| **Never** | Committing secrets or `.env`, disabling lint or type checks, adding a dependency to avoid ten lines, weakening a test to make it pass |
+| **Never** | Committing secrets or `.env`, disabling lint or type checks, adding a dependency to avoid ten lines, weakening a test to make it pass, weakening an enforced boundary to let code through |
 
 Changing a test is legitimate only when the expected behaviour itself changed —
 state that in the commit.
+
+A claim about a file — its contents, its rules, what it mandates — `MUST` be
+checked against the file on disk before acting on it. Cached or remembered
+context goes stale, and a confident report of a contradiction that does not
+exist is worse than no report at all.
 
 ## 2. Architecture
 
@@ -48,6 +53,9 @@ they belong to no layer.
 - Layer boundaries `MUST` be enforced by tooling, not by discipline alone
   (`import-x/no-restricted-paths`). A rule nobody can break by accident is
   worth more than a rule written down.
+- When an enforced boundary blocks the code, **the code moves — the boundary
+  does not**. Widening an exemption to let something through requires an ADR.
+  A rule that yields the first time it is inconvenient was never a rule.
 - The transport layer `MUST NOT` contain business rules, and business code
   `MUST NOT` know the transport — no request or response objects, no status
   codes.
@@ -62,6 +70,11 @@ they belong to no layer.
 
 **Dependencies.**
 
+- Every module imported `MUST` be a declared direct dependency. Reaching a
+  package that only arrives transitively works until a resolver tightens, and
+  it hides what the code actually rests on.
+- Global, side-effectful imports — polyfills above all — belong at the
+  composition root and `MUST NOT` sit in a domain file.
 - Dependencies `MUST` be injected, never constructed inline.
 - A dependency `SHOULD` be depended upon as a concrete class until a second
   implementation exists. An abstract port with one implementer buys nothing
@@ -127,7 +140,17 @@ type-encoding in names. One concept keeps one name across every layer.
   key, and the record of that key `MUST` share the transaction of the effect
   it protects.
 - Constraints (uniqueness, nullability, ranges) `MUST` be enforced at database
-  level, not only in validation.
+  level, not only in validation. A constraint is not implemented until
+  something has been **observed failing against it** — a declaration that the
+  engine quietly ignores looks identical to one that works.
+- Every blocking operation `MUST` carry an explicit timeout. An inherited
+  default is not a decision, and the defaults are usually chosen for a batch
+  job rather than for a request a client is waiting on.
+- Whatever opens a resource `MUST` expose how to close it, and the opener
+  closes it. A test run that does not exit on its own has a defect, not noise.
+- Input `MUST NOT` be silently coerced into validity. Trimming whitespace is
+  normalisation; rounding a number to fit is a decision taken on the client's
+  behalf, and it `MUST` be a rejection instead.
 - Queries `MUST` be parameterised. Money is a fixed-point decimal, never a
   float, and crosses the wire as a string.
 
@@ -138,6 +161,10 @@ type-encoding in names. One concept keeps one name across every layer.
 - Configuration `MUST` be validated at startup and fail fast.
 - External input `MUST` be validated at the boundary, rejecting unknown fields.
 - Secrets, credentials and PII `MUST NOT` be logged.
+- Secrets `MUST` be excluded at **every** artifact boundary, not only the
+  repository: the ignore list of the version control system, the build context
+  of an image, and anything published. Each boundary has its own ignore file
+  and each one is a separate way to leak.
 
 ## 9. Testing
 
@@ -153,6 +180,12 @@ type-encoding in names. One concept keeps one name across every layer.
 - One behaviour per test, and the name states that behaviour.
 - Tests `MUST` be deterministic, order-independent, and pass from a clean
   checkout through `docker compose`.
+- Verification `MUST` interrogate the running system, never re-read the code
+  that produced it. Ask the database for its schema; run the built artifact;
+  send the request. Reading a definition back only proves it was written.
+- A build is not finished until the artifact it produced has been **executed**.
+  A configuration can be perfectly readable and still put the output somewhere
+  nothing looks for it.
 - Every command — install, lint, type-check, test, migrate, run — `MUST` be
   executed inside a container. The host's runtime is not the one that ships, so
   a green run on the host is weaker evidence than it looks. A single entry
@@ -167,6 +200,9 @@ type-encoding in names. One concept keeps one name across every layer.
 - The README covers prerequisites, setup, run, test, and a request and
   response example per endpoint.
 - Decisions are recorded as ADRs in `docs/decisions/`.
+- A document that contradicts the code is a **defect**, and it is corrected in
+  the change that made it untrue — not later. A stale claim is more expensive
+  than a missing one, because it is believed.
 
 ## 11. Git
 
