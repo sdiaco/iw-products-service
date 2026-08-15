@@ -17,7 +17,9 @@ services:
 
   migrate:
     build: .
-    command: sh -c "pnpm migrate && pnpm seed"
+    # `pnpm seed` is deferred to the task that adds db/seeds/products.seed.ts;
+    # wiring it back in belongs to that task's diff, not this one.
+    command: pnpm migrate
     environment: &app-env
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000

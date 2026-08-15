@@ -12,10 +12,15 @@ const sequelize = new Sequelize({
 });
 
 export const migrator = new Umzug({
-  // Node cannot run this file's ESM-detected .ts source directly (__dirname is
-  // undefined there); the migrate script compiles to CommonJS first, so the
-  // glob targets the compiled output alongside this file.
-  migrations: { glob: ['migrations/*.js', { cwd: __dirname }] },
+  // Production (`pnpm migrate`) compiles to CommonJS first and runs the .js
+  // output, so only .js files exist next to this file at runtime there. Under
+  // ts-jest (the e2e harness), this module is required directly as .ts and
+  // only .ts files exist next to it — ts-jest transforms it through Jest's
+  // module registry, and Umzug's default resolver falls back to `require()`
+  // for a `.ts` path when `require.main` is defined (true in both Node and
+  // Jest), so that `require()` is intercepted by ts-jest's transform too.
+  // One glob covering both extensions lets the same file serve both paths.
+  migrations: { glob: ['migrations/*.{js,ts}', { cwd: __dirname }] },
   context: sequelize.getQueryInterface(),
   storage: new SequelizeStorage({ sequelize }),
   logger: console,
