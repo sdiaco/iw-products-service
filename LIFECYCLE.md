@@ -75,28 +75,25 @@ gold-plating and set the slice order myself.
 
 ## 4 — Foundations · 2026-08-15
 
-**Goal** Get everything standing that the endpoints will need: toolchain,
+**Goal** Get everything standing that the endpoints need: toolchain,
 containers, config, errors, schema, bootstrap.
 
-**Done** Branch `feat/products-service`. Docker Compose (MySQL → migrations →
-API), validated environment, the error layer with the RFC 9457 filter, the
-Sequelize providers, both tables, `GET /health`, and the end-to-end harness.
-`make check` and `make e2e` green inside the container.
+**Done** Branch `feat/products-service`. Compose (MySQL → migrations → API),
+validated environment, the RFC 9457 error layer, Sequelize providers, both
+tables, `GET /health`, the e2e harness. `make check` and `make e2e` green.
 
-**Why** I made every command run in a container, because the host's Node is not
-`node:24-alpine` and a green run there proves less than it looks. Two findings
-changed the design: the `.ts` migrations do not run natively — Node reads them
-as ESM, where `__dirname` does not exist — so they are compiled first; and a
-named unique constraint written the obvious way is **silently discarded** by
-Sequelize, which left `productToken` with no unique index and no error. I found
-it by asking the database, not by re-reading the migration. Ten rules went into
-`AGENTS.md`, one per incident.
+**Why** Every command runs in a container: the host's Node is not the one that
+ships. Two findings changed the design. The `.ts` migrations do not run
+natively — Node reads them as ESM, where `__dirname` does not exist — so they
+are compiled. And a named unique constraint written the obvious way is silently
+discarded by Sequelize: `productToken` had no unique index and no error. I
+found it by asking the database, not by re-reading the migration.
 
-**AI** A fresh agent per task, given only that task, with every claim checked
-against the repository — two agents reported the same contradiction that did
-not exist. I rejected three pieces of their work: a shell guard hiding an empty
-source tree, a lint exemption widened so a controller could import the ORM, and
-a polyfill imported inside a domain file.
+**AI** A fresh agent per task, every claim checked against the repository — two
+reported the same contradiction that did not exist. I rejected three of their
+changes: a shell guard hiding an empty source tree, a lint exemption widened so
+a controller could import the ORM, and a polyfill put in a domain file. Ten
+rules went into `AGENTS.md`, one per incident.
 
 **Next** The create endpoint.
 
