@@ -84,16 +84,15 @@ tables, `GET /health`, the e2e harness. `make check` and `make e2e` green.
 
 **Why** Every command runs in a container: the host's Node is not the one that
 ships. Two findings changed the design. The `.ts` migrations do not run
-natively — Node reads them as ESM, where `__dirname` does not exist — so they
-are compiled. And a named unique constraint written the obvious way is silently
-discarded by Sequelize: `productToken` had no unique index and no error. I
-found it by asking the database, not by re-reading the migration.
+natively — Node reads them as ESM, without `__dirname` — so they are compiled.
+And a named unique constraint written the obvious way is silently discarded by
+Sequelize: `productToken` had no unique index and no error. I found it by
+asking the database, not by re-reading the migration.
 
 **AI** A fresh agent per task, every claim checked against the repository — two
-reported the same contradiction that did not exist. I rejected three of their
-changes: a shell guard hiding an empty source tree, a lint exemption widened so
-a controller could import the ORM, and a polyfill put in a domain file. Ten
-rules went into `AGENTS.md`, one per incident.
+reported the same contradiction that did not exist. I rejected three changes: a
+guard hiding an empty source tree, a lint exemption widened so a controller
+could import the ORM, a polyfill put in a domain file.
 
 **Next** The create endpoint.
 
