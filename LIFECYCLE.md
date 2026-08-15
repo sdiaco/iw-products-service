@@ -5,7 +5,8 @@
 | 1 | Engineering rules | done | 2026-08-14 |
 | 2 | Design | done | 2026-08-14 |
 | 3 | Implementation plan | done | 2026-08-14 |
-| 4 | Implementation | in progress | 2026-08-14 |
+| 4 | Foundations | done | 2026-08-15 |
+| 5 | Create a product | in progress | 2026-08-15 |
 
 ## 1 — Engineering rules · 2026-08-14
 
@@ -72,18 +73,38 @@ gold-plating and set the slice order myself.
 
 **Next** Implementation.
 
-## 4 — Implementation · 2026-08-14
+## 4 — Foundations · 2026-08-15
 
-**Goal** Build the service slice by slice, tests written with the code.
+**Goal** Get everything standing that the endpoints will need: toolchain,
+containers, config, errors, schema, bootstrap.
 
-**Done** In progress. Branch `feat/products-service`.
+**Done** Branch `feat/products-service`. Docker Compose (MySQL → migrations →
+API), validated environment, the error layer with the RFC 9457 filter, the
+Sequelize providers, both tables, `GET /health`, and the end-to-end harness.
+`make check` and `make e2e` green inside the container.
 
-**Why** I work on a branch rather than on main so the analysis and the build
-read as two separate things in the history.
+**Why** I made every command run in a container, because the host's Node is not
+`node:24-alpine` and a green run there proves less than it looks. Two findings
+changed the design: the `.ts` migrations do not run natively — Node reads them
+as ESM, where `__dirname` does not exist — so they are compiled first; and a
+named unique constraint written the obvious way is **silently discarded** by
+Sequelize, which left `productToken` with no unique index and no error. I found
+it by asking the database, not by re-reading the migration. Ten rules went into
+`AGENTS.md`, one per incident.
 
-**AI** Each task is implemented by a fresh agent given only that task, then
-reviewed twice — once against the specification, once for code quality. I read
-every deviation myself: the first one I rejected was a shell guard slipped into
-the `typecheck` script to work around an empty source tree.
+**AI** A fresh agent per task, given only that task, with every claim checked
+against the repository — two agents reported the same contradiction that did
+not exist. I rejected three pieces of their work: a shell guard hiding an empty
+source tree, a lint exemption widened so a controller could import the ORM, and
+a polyfill imported inside a domain file.
 
-**Next** Delivery.
+**Next** The create endpoint.
+
+## 5 — Create a product · 2026-08-15
+
+**Goal** `POST /products`, with validation, the duplicate-token conflict, and
+both kinds of test.
+
+**Done** In progress.
+
+**Next** Reading and listing products.
