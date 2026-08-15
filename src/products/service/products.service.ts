@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { TransactionRunner } from '../../database/transaction.runner';
 import type { NewProduct, Page, Product } from '../product';
-import { ProductNotFoundError } from '../products.errors';
+import { STOCK_LOCK_WAIT_SECONDS } from '../products.constants';
+import {
+  InsufficientStockError,
+  ProductNotFoundError,
+  StockLimitExceededError,
+} from '../products.errors';
 import { ProductRepository } from '../repository/product.repository';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly products: ProductRepository) {}
+  constructor(
+    private readonly products: ProductRepository,
+    private readonly transactions: TransactionRunner,
+  ) {}
 
   create(input: NewProduct): Promise<Product> {
     return this.products.create(input);
@@ -29,5 +38,26 @@ export class ProductsService {
     if (!deleted) {
       throw new ProductNotFoundError(productToken);
     }
+  }
+
+  async changeStock(productToken: string, delta: number): Promise<Product> {
+    return this.transactions.run(async (transaction) => {
+      await this.products.setLockWaitTimeout(transaction, STOCK_LOCK_WAIT_SECONDS);
+
+      const affected = await this.products.applyStockDelta(productToken, delta, transaction);
+      if (affected === 0) {
+        const stock = await this.products.findStockForUpdate(productToken, transaction);
+        if (stock === null) {
+          throw new ProductNotFoundError(productToken);
+        }
+        throw delta < 0 ? new InsufficientStockError(stock) : new StockLimitExceededError();
+      }
+
+      const product = await this.products.findByToken(productToken, transaction);
+      if (product === null) {
+        throw new ProductNotFoundError(productToken);
+      }
+      return product;
+    });
   }
 }
