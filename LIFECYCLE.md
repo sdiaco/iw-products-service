@@ -6,7 +6,10 @@
 | 2 | Design | done | 2026-08-14 |
 | 3 | Implementation plan | done | 2026-08-14 |
 | 4 | Foundations | done | 2026-08-15 |
-| 5 | Create a product | in progress | 2026-08-15 |
+| 5 | CRUD endpoints | done | 2026-08-15 |
+| 6 | Atomic stock update | done | 2026-08-15 |
+| 7 | Idempotent stock requests | done | 2026-08-15 |
+| 8 | Delivery | done | 2026-08-15 |
 
 ## 1 — Engineering rules · 2026-08-14
 
@@ -90,11 +93,86 @@ could import the ORM, a polyfill put in a domain file.
 
 **Next** The create endpoint.
 
-## 5 — Create a product · 2026-08-15
+## 5 — CRUD endpoints · 2026-08-15
 
-**Goal** `POST /products`, with validation, the duplicate-token conflict, and
-both kinds of test.
+**Goal** All five product endpoints working, validated and tested.
 
-**Done** In progress.
+**Done** Create, list, get, delete — each built bottom-up (repository → service
+→ controller → e2e). Validation rejects unknown fields, three-decimal prices,
+whitespace names, malformed tokens. The duplicate-token conflict fires from a
+real unique constraint, not application logic.
 
-**Next** Reading and listing products.
+**Why** I built vertically — one endpoint at a time, fully tested, rather than
+all repositories then all services. Each commit stands alone. The order
+(create → read → delete) gave the tests a seeded database naturally.
+
+**AI** A fresh subagent per task, then a spec-compliance review and a quality
+review by two separate subagents. One reviewer incorrectly claimed return types
+were missing — verified on disk and dismissed. The `async` without `await`
+pattern was caught and fixed before commit.
+
+**Next** The stock update.
+
+## 6 — Atomic stock update · 2026-08-15
+
+**Goal** A stock change that survives twenty concurrent requests.
+
+**Done** `TransactionRunner` in `database/`, a lint rule that allows
+type-only Sequelize imports in the service, the single conditional `UPDATE` in
+the repository, the service flow (lock timeout → apply → classify failure →
+read back), the endpoint, and a concurrency proof: 20 parallel decrements
+against stock 10 end at zero with exactly 10 successes.
+
+**Why** The guard in the WHERE clause makes the database the authority — no
+application-level read-modify-write. The 3-second lock wait timeout ensures
+the 409 arrives before the client gives up. The `FOR UPDATE` on the
+diagnostic read is necessary under `REPEATABLE READ` or it reads a snapshot.
+
+**AI** Two subagent batches: infrastructure (runner + lint boundary + conditional
+update) then service + endpoint. The quality reviewer confirmed zero
+architecture violations. The implementer added `FOR UPDATE` to the
+idempotency INSERT subquery to prevent shared-lock deadlocks under load —
+a deviation I verified and accepted.
+
+**Next** Idempotency.
+
+## 7 — Idempotent stock requests · 2026-08-15
+
+**Goal** A retried stock request applies the delta once.
+
+**Done** The idempotency repository (INSERT...SELECT registers the key and
+checks the product in one statement), the header decorator, the service
+rewrite (check → register → apply → store → commit, rollback on failure
+deletes the key), and end-to-end tests for replay, reuse, rollback, and
+cascade deletion.
+
+**Why** A delta applied twice is a data-integrity bug. The key must share the
+transaction with the effect: if the effect fails, the key disappears, so a
+retry is executed rather than replaying a failure forever. A stored 409 after
+a restock would be permanent corruption.
+
+**AI** Two subagent batches. The implementer correctly identified that the
+INSERT...SELECT needed `FOR UPDATE` on the subquery to prevent a deadlock
+in the concurrency test. I renamed the DTO files (dropped mechanism suffixes)
+and the model file after the reviews passed.
+
+**Next** Documentation and delivery.
+
+## 8 — Delivery · 2026-08-15
+
+**Goal** A reviewer can start, test and understand the service from a clean clone.
+
+**Done** The idempotent seed (5 products, including zero-stock and free), the
+README with sample requests, `docs/architecture.md`, `docs/api.md` with the
+full error catalogue, three ADRs, and a Bruno API collection. Verified by
+`docker compose up` from scratch: migrations, seed, all endpoints responding.
+
+**Why** Documentation is scored. A repository without a working README fails
+before the code is read. The seed includes edge cases (free product, zero
+stock) because those are the first things a reviewer tries.
+
+**AI** Two parallel subagents: one for the seed, one for all documentation.
+Both read the actual source files to ensure accuracy. I created the Bruno
+collection manually and verified the full stack end-to-end.
+
+**Next** Panel preparation (local only, not committed).
