@@ -37,10 +37,10 @@ update flow step by step, the test plan and the pinned stack.
 **Why** The brief leaves stock semantics and pagination open: I chose a signed
 delta and `page`/`size`. Delta models the real event and makes the atomic
 update and the idempotency key necessary rather than decorative. I kept the
-tree feature-first and rejected `controllers/` at the root — it splits one
-change across three trees — but mandated the same three layers inside every
-module. I dropped the abstract repository port: with one implementation the
-real boundary is the method shape plus a lint rule confining the ORM.
+tree feature-first — `controllers/` at the root splits one change across three
+trees — with the same three layers mandated inside every module. I dropped the
+abstract repository port: the real boundary is the method shape plus a lint
+rule confining the ORM.
 
 **AI** A question-driven session with Claude; I decided each fork myself. It
 caught the unsigned-arithmetic problem on `stock` and the snapshot read under
