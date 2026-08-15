@@ -75,8 +75,7 @@ gold-plating and set the slice order myself.
 
 ## 4 — Foundations · 2026-08-15
 
-**Goal** Get everything standing that the endpoints need: toolchain,
-containers, config, errors, schema, bootstrap.
+**Goal** Stand up everything the endpoints need before writing one.
 
 **Done** Branch `feat/products-service`. Compose (MySQL → migrations → API),
 validated environment, the RFC 9457 error layer, Sequelize providers, both
