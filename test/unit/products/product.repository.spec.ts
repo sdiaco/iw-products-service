@@ -40,3 +40,23 @@ describe('ProductRepository.create', () => {
     );
   });
 });
+
+describe('ProductRepository reads', () => {
+  it('returns null when no product has that token', async () => {
+    const model = modelMock({ findOne: jest.fn().mockResolvedValue(null) });
+    const repository = new ProductRepository(model);
+    await expect(repository.findByToken('SKU-000123')).resolves.toBeNull();
+  });
+
+  it('derives the offset from the page and orders by id', async () => {
+    const findAndCountAll = jest.fn().mockResolvedValue({ rows: [row], count: 42 });
+    const repository = new ProductRepository(modelMock({ findAndCountAll }));
+    const page = await repository.findPage(3, 20);
+    expect(findAndCountAll).toHaveBeenCalledWith({
+      order: [['id', 'ASC']],
+      offset: 40,
+      limit: 20,
+    });
+    expect(page.total).toBe(42);
+  });
+});

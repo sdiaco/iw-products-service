@@ -21,4 +21,20 @@ export class ProductRepository {
       throw error;
     }
   }
+
+  async findByToken(productToken: string): Promise<Product | null> {
+    const row = await this.model.findOne({ where: { productToken } });
+    return row === null ? null : toProduct(row);
+  }
+
+  async findPage(page: number, size: number): Promise<{ items: Product[]; total: number }> {
+    // The order is not decoration: without it MySQL may return rows in any
+    // order and two pages could repeat or skip a product.
+    const { rows, count } = await this.model.findAndCountAll({
+      order: [['id', 'ASC']],
+      offset: (page - 1) * size,
+      limit: size,
+    });
+    return { items: rows.map(toProduct), total: count };
+  }
 }
