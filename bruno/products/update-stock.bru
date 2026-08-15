@@ -1,0 +1,20 @@
+meta {
+  name: Update Stock
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/products/SKU-000123/stock
+  body: json
+}
+
+headers {
+  Idempotency-Key: 9f8c1a2e-4b3d-11ef-a1c2-0242ac130002
+}
+
+body:json {
+  {
+    "delta": -3
+  }
+}

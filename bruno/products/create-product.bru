@@ -1,0 +1,19 @@
+meta {
+  name: Create Product
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/products
+  body: json
+}
+
+body:json {
+  {
+    "productToken": "SKU-000123",
+    "name": "Blue cotton shirt",
+    "price": "19.99",
+    "stock": 10
+  }
+}
