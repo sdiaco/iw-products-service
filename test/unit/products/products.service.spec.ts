@@ -1,5 +1,6 @@
 import { ProductsService } from '../../../src/products/service/products.service';
 import type { ProductRepository } from '../../../src/products/repository/product.repository';
+import { ProductNotFoundError } from '../../../src/products/products.errors';
 
 const product = {
   productToken: 'SKU-000123',
@@ -39,5 +40,21 @@ describe('ProductsService.create', () => {
       price: '19.99',
       stock: 10,
     });
+  });
+});
+
+describe('ProductsService reads', () => {
+  it('raises ProductNotFound when the repository has nothing', async () => {
+    const service = new ProductsService(
+      repositoryMock({ findByToken: jest.fn().mockResolvedValue(null) }),
+    );
+    await expect(service.get('SKU-000123')).rejects.toBeInstanceOf(ProductNotFoundError);
+  });
+
+  it('computes totalPages as a ceiling division', async () => {
+    const findPage = jest.fn().mockResolvedValue({ items: [product], total: 41 });
+    const service = new ProductsService(repositoryMock({ findPage }));
+    const page = await service.list(1, 20);
+    expect(page.meta).toEqual({ page: 1, size: 20, total: 41, totalPages: 3 });
   });
 });
