@@ -37,4 +37,9 @@ export class ProductRepository {
     });
     return { items: rows.map(toProduct), total: count };
   }
+
+  async deleteByToken(productToken: string): Promise<boolean> {
+    const affected = await this.model.destroy({ where: { productToken } });
+    return affected > 0;
+  }
 }

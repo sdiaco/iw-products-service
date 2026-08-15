@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
+import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { ProductsService } from '../service/products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -35,5 +35,12 @@ export class ProductsController {
     const product = await this.products.create(dto);
     void reply.header('Location', `/products/${product.productToken}`);
     return { data: ProductResponse.from(product) };
+  }
+
+  @Delete(':productToken')
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async remove(@Param() params: ProductTokenParam): Promise<void> {
+    await this.products.remove(params.productToken);
   }
 }

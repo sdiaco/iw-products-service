@@ -58,3 +58,12 @@ describe('ProductsService reads', () => {
     expect(page.meta).toEqual({ page: 1, size: 20, total: 41, totalPages: 3 });
   });
 });
+
+describe('ProductsService.remove', () => {
+  it('raises ProductNotFound when nothing was deleted', async () => {
+    const service = new ProductsService(
+      repositoryMock({ deleteByToken: jest.fn().mockResolvedValue(false) }),
+    );
+    await expect(service.remove('SKU-000123')).rejects.toBeInstanceOf(ProductNotFoundError);
+  });
+});

@@ -23,4 +23,11 @@ export class ProductsService {
     const { items, total } = await this.products.findPage(page, size);
     return { items, meta: { page, size, total, totalPages: Math.ceil(total / size) } };
   }
+
+  async remove(productToken: string): Promise<void> {
+    const deleted = await this.products.deleteByToken(productToken);
+    if (!deleted) {
+      throw new ProductNotFoundError(productToken);
+    }
+  }
 }

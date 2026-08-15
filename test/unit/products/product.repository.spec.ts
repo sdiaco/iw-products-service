@@ -60,3 +60,12 @@ describe('ProductRepository reads', () => {
     expect(page.total).toBe(42);
   });
 });
+
+describe('ProductRepository.deleteByToken', () => {
+  it('reports false when nothing was deleted', async () => {
+    const repository = new ProductRepository(
+      modelMock({ destroy: jest.fn().mockResolvedValue(0) }),
+    );
+    await expect(repository.deleteByToken('SKU-000123')).resolves.toBe(false);
+  });
+});
