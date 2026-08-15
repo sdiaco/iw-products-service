@@ -53,6 +53,14 @@ describe('ProductRepository reads', () => {
     await expect(repository.findByToken('SKU-000123')).resolves.toBeNull();
   });
 
+  it('returns the product when found', async () => {
+    const model = modelMock({ findOne: jest.fn().mockResolvedValue(row) });
+    const repository = new ProductRepository(model, sequelizeMock(jest.fn()));
+    const product = await repository.findByToken('SKU-000123');
+    expect(product).toEqual(row);
+    expect(product).not.toHaveProperty('id');
+  });
+
   it('derives the offset from the page and orders by id', async () => {
     const findAndCountAll = jest.fn().mockResolvedValue({ rows: [row], count: 42 });
     const repository = new ProductRepository(
@@ -76,6 +84,20 @@ describe('ProductRepository.deleteByToken', () => {
       sequelizeMock(jest.fn()),
     );
     await expect(repository.deleteByToken('SKU-000123')).resolves.toBe(false);
+  });
+});
+
+describe('ProductRepository.setLockWaitTimeout', () => {
+  it('sends the SET SESSION statement with the timeout value', async () => {
+    const query = jest.fn().mockResolvedValue(undefined);
+    const repository = new ProductRepository(modelMock(), sequelizeMock(query));
+    await repository.setLockWaitTimeout({} as never, 3);
+    const [sql, options] = query.mock.calls[0] as [
+      string,
+      { replacements: Record<string, unknown> },
+    ];
+    expect(sql).toContain('innodb_lock_wait_timeout');
+    expect(options.replacements).toEqual({ seconds: 3 });
   });
 });
 
@@ -104,5 +126,23 @@ describe('ProductRepository.applyStockDelta', () => {
     await expect(repository.applyStockDelta('SKU-000123', -3, {} as never)).rejects.toBeInstanceOf(
       ConcurrentModificationError,
     );
+  });
+});
+
+describe('ProductRepository.findStockForUpdate', () => {
+  it('returns the stock value from a locking read', async () => {
+    const query = jest.fn().mockResolvedValue([{ stock: 7 }]);
+    const repository = new ProductRepository(modelMock(), sequelizeMock(query));
+    const stock = await repository.findStockForUpdate('SKU-000123', {} as never);
+    expect(stock).toBe(7);
+    const [sql] = query.mock.calls[0] as [string];
+    expect(sql).toContain('FOR UPDATE');
+  });
+
+  it('returns null when the product does not exist', async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const repository = new ProductRepository(modelMock(), sequelizeMock(query));
+    const stock = await repository.findStockForUpdate('SKU-000123', {} as never);
+    expect(stock).toBeNull();
   });
 });

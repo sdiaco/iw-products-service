@@ -25,4 +25,16 @@ describe('IdempotencyRepository', () => {
       repository.insertPending('key-12345678', 'SKU-999999', 'hash', {} as never),
     ).resolves.toBe(false);
   });
+
+  it('saves the response on the idempotency record', async () => {
+    const query = jest.fn().mockResolvedValue([undefined, 1]);
+    const repository = new IdempotencyRepository(sequelizeMock(query));
+    await repository.saveResponse('key-12345678', 200, { stock: 7 }, {} as never);
+    const [sql, options] = query.mock.calls[0] as [
+      string,
+      { replacements: Record<string, unknown> },
+    ];
+    expect(sql).toContain('UPDATE idempotency_keys');
+    expect(options.replacements).toMatchObject({ key: 'key-12345678', status: 200 });
+  });
 });
