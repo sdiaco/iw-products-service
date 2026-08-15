@@ -394,6 +394,18 @@ Notes:
   as ISO-8601 UTC, so container time zones cannot change the API's output.
 - Schema is created by Umzug migrations. `sequelize.sync()` is never used, in
   application code or in tests.
+- Migrations are compiled before they run (`tsc`, then `node dist/db/umzug.js`).
+  Running the `.ts` directly on Node's native type stripping was tried and does
+  not work: with no `"type"` field in `package.json`, Node classifies a file
+  using `import` syntax as ESM, and `__dirname` — which the migration glob needs
+  — does not exist there. Compiling costs one step and no dependency; the
+  alternatives were `ts-node` or `tsx`, which cost a dependency each.
+- Named unique constraints are declared through `createTable`'s `uniqueKeys`
+  option, not as `unique: 'name'` on the attribute. Sequelize 6 only emits an
+  inline `UNIQUE` for `unique: true`; a *named* constraint is read from a
+  model's `uniqueKeys`, and `queryInterface.createTable` is called without a
+  model. Declared the wrong way it is **discarded in silence** — no error, no
+  index, and the duplicate-token `409` the brief asks for would never fire.
 
 **Retention of `idempotency_keys` is 24 hours, and the rule is enforced when
 reading.** A record older than the window is treated as absent, so the request
@@ -500,7 +512,7 @@ mandating the internal layout instead: **every domain module has exactly
 ├── lefthook.yml                 pre-push gate: lint, typecheck, unit, e2e
 │
 ├── db/
-│   ├── umzug.ts                 migration runner (node runs the .ts directly)
+│   ├── umzug.ts                 migration runner, compiled before it runs
 │   ├── migrations/
 │   │   ├── 20260814T1000-create-products.ts
 │   │   └── 20260814T1010-create-idempotency-keys.ts
@@ -744,7 +756,7 @@ Versions verified against the npm registry on 2026-08-14, not from memory.
 
 | Component | Version | Note |
 |---|---|---|
-| Node.js | 24 LTS | 26 is Current until October 2026; a reviewer should run an LTS. Native type stripping runs `db/umzug.ts` with no `ts-node`. |
+| Node.js | 24 LTS | 26 is Current until October 2026; a reviewer should run an LTS. |
 | TypeScript | 5.9.3 | `typescript-eslint` 8.67 declares `typescript >=4.8.4 <6.1.0` and `ts-jest` 29.4 `>=4.3 <7`, so TypeScript 7 is outside both. |
 | NestJS | 11.1.29 | With `@nestjs/platform-fastify`. |
 | Sequelize | 6.37.8 | 7 is still alpha. Version 6 is why the build stays CommonJS. |

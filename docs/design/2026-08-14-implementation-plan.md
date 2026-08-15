@@ -3686,8 +3686,18 @@ slices, called out where it happens.
 
 **Known soft spots, flagged rather than hidden.**
 
-1. Node's type stripping loading the `.ts` migrations is the one unverified
-   assumption in Slice 0. Task 0.6 Step 4 carries the fallback.
+1. ~~Node's type stripping loading the `.ts` migrations~~ — **resolved, and the
+   assumption was wrong.** Node classifies a `.ts` file using `import` syntax as
+   ESM when `package.json` declares no `"type"`, and `__dirname` does not exist
+   there, which the migration glob needs. The migrations are compiled first:
+   `tsc -p tsconfig.json --outDir dist && node dist/db/umzug.js up`, and the
+   Umzug glob targets `migrations/*.js`. No new dependency was added.
+
+   **Consequence for Task 0.7:** the end-to-end `globalSetup` imports `migrator`
+   through ts-jest, where `__dirname` is `db/` and only `.ts` files exist, so the
+   glob would match nothing and every table would be missing. Whoever implements
+   that task must verify the migrations actually run from `globalSetup` and not
+   assume it.
 2. Swagger's UI assets on the Fastify adapter may need `@fastify/static`.
    Task 0.7 Step 8 says what to do if they 404.
 3. The concurrency test depends on a pool of at least twenty connections and on
