@@ -508,14 +508,16 @@ mandating the internal layout instead: **every domain module has exactly
 ├── eslint.config.mjs            flat config, typescript-eslint, import-x boundaries
 ├── jest.config.ts               unit, parallel, roots: test/unit
 ├── jest.e2e.config.ts           e2e, --runInBand, globalSetup
-├── tsconfig.json                strict, CommonJS
+├── tsconfig.json                strict, CommonJS — editor, lint and typecheck
+├── tsconfig.build.json          rootDir src, so the build lands at dist/main.js
+├── .prettierignore              prose is hand-wrapped; the formatter stays out
 ├── lefthook.yml                 pre-push gate: lint, typecheck, unit, e2e
 │
 ├── db/
 │   ├── umzug.ts                 migration runner, compiled before it runs
 │   ├── migrations/
-│   │   ├── 20260814T1000-create-products.ts
-│   │   └── 20260814T1010-create-idempotency-keys.ts
+│   │   ├── 001-create-products.ts
+│   │   └── 002-create-idempotency-keys.ts
 │   ├── seeds/
 │   │   └── products.seed.ts
 │   └── init/
@@ -532,7 +534,8 @@ mandating the internal layout instead: **every domain module has exactly
 ├── notes/                       local only, excluded from git — study notes
 │
 ├── src/
-│   ├── main.ts                  bootstrap, Fastify adapter, global pipe and filter
+│   ├── main.ts                  bootstrap only
+│   ├── app.setup.ts             pipes, filter, Swagger — shared with the e2e factory
 │   ├── app.module.ts
 │   │
 │   ├── config/
@@ -543,6 +546,8 @@ mandating the internal layout instead: **every domain module has exactly
 │   │   ├── errors/                      one concept: how we fail, and how we say it
 │   │   │   ├── domain-error.ts          the base every failure extends
 │   │   │   ├── problem-details.ts       the RFC 9457 body shape
+│   │   │   ├── validation-failed.error.ts
+│   │   │   ├── infrastructure.errors.ts database unavailable, lock contention
 │   │   │   └── domain-exception.filter.ts
 │   │   └── logging/
 │   │       └── app-logger.ts            wraps the Nest logger, one place to change
@@ -550,7 +555,8 @@ mandating the internal layout instead: **every domain module has exactly
 │   ├── database/
 │   │   ├── database.module.ts
 │   │   ├── database.providers.ts        hand-wired Sequelize factory
-│   │   └── database.tokens.ts           injection tokens
+│   │   ├── database.tokens.ts           injection tokens
+│   │   └── database.health.ts           lets health ask without importing the ORM
 │   │
 │   ├── health/
 │   │   ├── health.module.ts
@@ -596,7 +602,7 @@ mandating the internal layout instead: **every domain module has exactly
         ├── setup/
         │   ├── global-setup.ts   waits for MySQL, runs migrations
         │   ├── app.factory.ts    boots Nest and awaits the Fastify instance
-        │   └── truncate.ts       idempotency_keys before products (foreign key)
+        │   └── database.ts       resets: idempotency_keys before products (foreign key)
         ├── products.create.e2e-spec.ts
         ├── products.list.e2e-spec.ts
         ├── products.get.e2e-spec.ts
