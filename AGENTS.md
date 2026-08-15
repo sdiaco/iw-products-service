@@ -153,6 +153,10 @@ type-encoding in names. One concept keeps one name across every layer.
 - One behaviour per test, and the name states that behaviour.
 - Tests `MUST` be deterministic, order-independent, and pass from a clean
   checkout through `docker compose`.
+- Every command — install, lint, type-check, test, migrate, run — `MUST` be
+  executed inside a container. The host's runtime is not the one that ships, so
+  a green run on the host is weaker evidence than it looks. A single entry
+  point (a `Makefile` target) `SHOULD` wrap each one.
 
 ## 10. Comments and documentation
 

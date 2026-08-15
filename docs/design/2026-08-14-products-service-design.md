@@ -781,17 +781,24 @@ else must reach a running, seeded, documented API.
 
 ```
 docker compose up          # mysql, migrations, seed, api, Swagger on /docs
-make test                  # unit and e2e, inside the container
+make check                 # format, lint, types and unit tests, in the container
+make e2e                   # end-to-end against MySQL, in the container
+make test                  # both of the above
 docker compose down -v     # remove the volumes too
 ```
 
-**Two paths, on purpose.** The container path is the reviewer's, and it needs
-only Docker. The host path is the inner development loop: `pnpm start:dev` and
-`pnpm test` against MySQL published on the host, which is faster to iterate and
-to debug. The lefthook `pre-push` gate uses the **host** path, because a hook
-that shells into Compose is slow and fails confusingly when the stack is down.
-Both paths are documented in the README; the container path is the one the
-README opens with.
+**Every command runs in a container.** Not only the reviewer's: development,
+linting, type-checking and both test suites too. The host's Node is not
+`node:24-alpine`, so a green run on the host proves less than it appears to —
+and "it works on my machine" is exactly what a reviewer cannot verify. The
+`Makefile` is the single entry point (`make check`, `make e2e`, `make up`), and
+the lefthook `pre-push` gate calls those same targets rather than running
+`pnpm` directly.
+
+Two consequences, accepted knowingly. The gate is slower than a host-side one,
+and it fails unhelpfully when Docker is not running. And because
+`node_modules` comes from the image rather than from the bind mount, **adding a
+dependency requires rebuilding the image** before the container can see it.
 
 **Compose services.** `mysql` (8.4, healthcheck on `mysqladmin ping`) → `migrate`
 (one-shot, gated on `service_healthy`, runs the Umzug migrations and then the
