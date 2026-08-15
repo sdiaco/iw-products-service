@@ -76,4 +76,13 @@ describe('PATCH /products/:productToken/stock', () => {
       .send({ delta: -1 });
     expect(response.status).toBe(404);
   });
+
+  it('applies a positive delta', async () => {
+    const response = await request(app.getHttpServer())
+      .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', 'positive-delta-001')
+      .send({ delta: 5 });
+    expect(response.status).toBe(200);
+    expect((response.body as { data: { stock: number } }).data.stock).toBe(15);
+  });
 });

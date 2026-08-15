@@ -78,4 +78,22 @@ describe('idempotent stock changes', () => {
     const total = (rows[0] as [{ total: string }])[0].total;
     expect(parseInt(total, 10)).toBe(0);
   });
+
+  it('accepts a key of exactly 255 characters', async () => {
+    const longKey = 'k'.repeat(255);
+    const response = await request(app.getHttpServer())
+      .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', longKey)
+      .send({ delta: -1 });
+    expect(response.status).toBe(200);
+  });
+
+  it('rejects a key longer than 255 characters', async () => {
+    const tooLong = 'k'.repeat(256);
+    const response = await request(app.getHttpServer())
+      .patch('/products/SKU-000123/stock')
+      .set('Idempotency-Key', tooLong)
+      .send({ delta: -1 });
+    expect(response.status).toBe(400);
+  });
 });
