@@ -1,19 +1,16 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
-import { Sequelize } from 'sequelize';
 import { DatabaseUnavailableError } from '../common/errors/infrastructure.errors';
-import { SEQUELIZE } from '../database/database.tokens';
+import { DatabaseHealth } from '../database/database.health';
 
 @Controller('health')
 export class HealthController {
-  constructor(@Inject(SEQUELIZE) private readonly sequelize: Sequelize) {}
+  constructor(private readonly database: DatabaseHealth) {}
 
   @Get()
   @ApiOperation({ summary: 'Liveness of the service and of its database' })
   async check(): Promise<{ status: 'ok' }> {
-    try {
-      await this.sequelize.query('SELECT 1');
-    } catch {
+    if (!(await this.database.isReachable())) {
       throw new DatabaseUnavailableError();
     }
     return { status: 'ok' };

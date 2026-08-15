@@ -28,6 +28,14 @@ export const migrator = new Umzug({
 
 export type Migration = typeof migrator._types.migration;
 
+/**
+ * The connection is opened when this module loads, so any programmatic caller
+ * has to close it. The CLI branch below does; the e2e globalSetup calls this.
+ */
+export async function closeMigrationConnection(): Promise<void> {
+  await sequelize.close();
+}
+
 if (require.main === module) {
   migrator
     .runAsCLI()

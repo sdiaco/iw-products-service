@@ -1,5 +1,5 @@
 import { Sequelize } from 'sequelize';
-import { migrator } from '../../../db/umzug';
+import { closeMigrationConnection, migrator } from '../../../db/umzug';
 
 async function waitForDatabase(): Promise<void> {
   // MySQL accepts TCP before it accepts queries; retry rather than assume.
@@ -29,4 +29,6 @@ export default async function globalSetup(): Promise<void> {
   process.env.DB_NAME ??= 'ecommerce_test';
   await waitForDatabase();
   await migrator.up();
+  // The runner opened a connection at import time; Jest would stay alive on it.
+  await closeMigrationConnection();
 }

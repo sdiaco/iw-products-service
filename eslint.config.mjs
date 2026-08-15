@@ -50,15 +50,8 @@ export default defineConfig(
     },
   },
   {
-    // The health check queries the database directly to prove liveness — it is
-    // infrastructure, not business logic, so it is exempt like the repository layer.
-    files: [
-      'src/**/repository/**/*.ts',
-      'src/database/**/*.ts',
-      'src/health/**/*.ts',
-      'db/**/*.ts',
-      'test/**/*.ts',
-    ],
+    // The layers that are allowed to know the ORM exists.
+    files: ['src/**/repository/**/*.ts', 'src/database/**/*.ts', 'db/**/*.ts', 'test/**/*.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {
