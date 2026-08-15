@@ -1,21 +1,9 @@
 import { Catch, HttpException } from '@nestjs/common';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { AppLogger } from '../logging/app-logger';
 import { DomainError } from './domain-error';
 import { PROBLEM_CONTENT_TYPE, buildProblem } from './problem-details';
-
-// The real Fastify types would require declaring `fastify` as a direct
-// dependency for a package we only ever reach through the platform adapter;
-// this is the exact slice of request/reply this filter actually touches.
-interface RequestLike {
-  readonly url: string;
-}
-
-interface ReplyLike {
-  status(code: number): ReplyLike;
-  type(contentType: string): ReplyLike;
-  send(body: unknown): void;
-}
 
 /**
  * Registered for everything, not only for DomainError: malformed JSON, an
@@ -28,8 +16,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
-    const instance = http.getRequest<RequestLike>().url;
-    const reply = http.getResponse<ReplyLike>();
+    const instance = http.getRequest<FastifyRequest>().url;
+    const reply = http.getResponse<FastifyReply>();
 
     if (exception instanceof DomainError) {
       const problem = buildProblem({
@@ -40,7 +28,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
         instance,
         extra: exception.extra(),
       });
-      reply.status(problem.status).type(PROBLEM_CONTENT_TYPE).send(problem);
+      void reply.status(problem.status).type(PROBLEM_CONTENT_TYPE).send(problem);
       return;
     }
 
@@ -52,7 +40,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
         detail: exception.message,
         instance,
       });
-      reply.status(problem.status).type(PROBLEM_CONTENT_TYPE).send(problem);
+      void reply.status(problem.status).type(PROBLEM_CONTENT_TYPE).send(problem);
       return;
     }
 
@@ -68,6 +56,6 @@ export class DomainExceptionFilter implements ExceptionFilter {
       detail: 'The request could not be completed.',
       instance,
     });
-    reply.status(500).type(PROBLEM_CONTENT_TYPE).send(problem);
+    void reply.status(500).type(PROBLEM_CONTENT_TYPE).send(problem);
   }
 }

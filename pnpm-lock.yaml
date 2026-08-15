@@ -26,6 +26,9 @@ importers:
       class-validator:
         specifier: 0.15.1
         version: 0.15.1
+      fastify:
+        specifier: 5.11.0
+        version: 5.11.0
       mysql2:
         specifier: 3.23.3
         version: 3.23.3(@types/node@24.13.3)

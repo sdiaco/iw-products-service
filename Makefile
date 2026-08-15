@@ -1,4 +1,4 @@
-.PHONY: up down reset logs shell format lint typecheck unit e2e check migrate seed
+.PHONY: up down reset logs shell format format-fix lint typecheck unit e2e check migrate seed
 
 # Every command runs inside a container: the host's Node is not the one that ships.
 # --no-deps is used wherever MySQL is not needed, so the stack is not started for a lint.
@@ -10,6 +10,7 @@ logs:      ; docker compose logs -f api
 shell:     ; docker compose run --rm --no-deps api sh
 
 format:    ; docker compose run --rm --no-deps api pnpm format
+format-fix: ; docker compose run --rm --no-deps api pnpm format:fix
 lint:      ; docker compose run --rm --no-deps api pnpm lint
 typecheck: ; docker compose run --rm --no-deps api pnpm typecheck
 unit:      ; docker compose run --rm --no-deps api pnpm test

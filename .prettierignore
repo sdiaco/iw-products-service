@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+
+# Prose is hand-wrapped for readable diffs; reflowing it would churn every line.
+*.md
+docs/
