@@ -1,10 +1,22 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { ProductsService } from '../service/products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQuery } from './dto/list-products.query';
 import { ProductTokenParam } from './dto/product-token.param';
+import { UpdateStockDto } from './dto/update-stock.dto';
 import { ProductResponse, type DataResponse, type PagedResponse } from './product.response';
 
 @ApiTags('products')
@@ -42,5 +54,15 @@ export class ProductsController {
   @ApiNoContentResponse()
   async remove(@Param() params: ProductTokenParam): Promise<void> {
     await this.products.remove(params.productToken);
+  }
+
+  @Patch(':productToken/stock')
+  @ApiOkResponse({ type: ProductResponse })
+  async changeStock(
+    @Param() params: ProductTokenParam,
+    @Body() dto: UpdateStockDto,
+  ): Promise<DataResponse<ProductResponse>> {
+    const product = await this.products.changeStock(params.productToken, dto.delta);
+    return { data: ProductResponse.from(product) };
   }
 }
