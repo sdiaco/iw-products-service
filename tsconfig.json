@@ -3,6 +3,7 @@
     "module": "commonjs",
     "target": "ES2023",
     "lib": ["ES2023"],
+    "types": ["node", "jest"],
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

@@ -44,3 +44,23 @@ export class StockLimitExceededError extends DomainError {
     super('Stock cannot exceed the maximum a signed integer can hold.');
   }
 }
+
+export class IdempotencyKeyReuseError extends DomainError {
+  readonly code = 'IDEMPOTENCY_KEY_REUSE';
+  readonly status = 409;
+  readonly title = 'Idempotency key reused';
+
+  constructor() {
+    super('This Idempotency-Key was already used for a different request.');
+  }
+}
+
+export class IdempotencyRequestInProgressError extends DomainError {
+  readonly code = 'IDEMPOTENCY_REQUEST_IN_PROGRESS';
+  readonly status = 409;
+  readonly title = 'Request in progress';
+
+  constructor() {
+    super('A request with this Idempotency-Key is still being processed. Retry shortly.');
+  }
+}

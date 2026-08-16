@@ -4,11 +4,12 @@ import { Sequelize } from 'sequelize';
 import { DatabaseHealth } from './database.health';
 import { sequelizeProvider } from './database.providers';
 import { SEQUELIZE } from './database.tokens';
+import { TransactionRunner } from './transaction.runner';
 
 @Global()
 @Module({
-  providers: [sequelizeProvider, DatabaseHealth],
-  exports: [SEQUELIZE, DatabaseHealth],
+  providers: [sequelizeProvider, DatabaseHealth, TransactionRunner],
+  exports: [SEQUELIZE, DatabaseHealth, TransactionRunner],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   constructor(@Inject(SEQUELIZE) private readonly sequelize: Sequelize) {}

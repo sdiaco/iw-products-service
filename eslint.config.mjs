@@ -23,14 +23,15 @@ export default defineConfig(
       // Destructuring a key out of an object to omit it (`const { a, ...rest } = obj`)
       // leaves the extracted binding unused by design; this is not a real dead variable.
       '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
-      'no-restricted-imports': [
+      '@typescript-eslint/no-restricted-imports': [
         'error',
         {
           paths: [
             {
               name: 'sequelize',
+              allowTypeImports: true,
               message:
-                'The ORM may only be imported under src/**/repository/, src/database/, db/ or test/.',
+                'The ORM may only be used under repository/ or database/. A type-only import is fine.',
             },
           ],
         },
@@ -52,7 +53,7 @@ export default defineConfig(
   {
     // The layers that are allowed to know the ORM exists.
     files: ['src/**/repository/**/*.ts', 'src/database/**/*.ts', 'db/**/*.ts', 'test/**/*.ts'],
-    rules: { 'no-restricted-imports': 'off' },
+    rules: { '@typescript-eslint/no-restricted-imports': 'off' },
   },
   {
     // The flat config file itself is tooling, not application source — it does not
