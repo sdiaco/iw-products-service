@@ -3,7 +3,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { AppLogger } from '../logging/app-logger';
 import { DomainError } from './domain-error';
-import { PROBLEM_CONTENT_TYPE, buildProblem } from './problem-details';
+import { PROBLEM_CONTENT_TYPE, createProblemResponse } from './problem-details';
 
 /**
  * Registered for everything, not only for DomainError: malformed JSON, an
@@ -20,7 +20,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const reply = http.getResponse<FastifyReply>();
 
     if (exception instanceof DomainError) {
-      const problem = buildProblem({
+      const problem = createProblemResponse({
         status: exception.status,
         title: exception.title,
         code: exception.code,
@@ -33,7 +33,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
-      const problem = buildProblem({
+      const problem = createProblemResponse({
         status: exception.getStatus(),
         title: exception.name,
         code: 'HTTP_ERROR',
@@ -49,7 +49,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
       `Unhandled error on ${instance}`,
       exception instanceof Error ? exception.stack : undefined,
     );
-    const problem = buildProblem({
+    const problem = createProblemResponse({
       status: 500,
       title: 'Internal server error',
       code: 'INTERNAL_ERROR',

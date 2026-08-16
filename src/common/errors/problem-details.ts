@@ -10,14 +10,14 @@ export interface ProblemDetails {
 
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
-export function buildProblem(args: {
+export const createProblemResponse = (args: {
   status: number;
   title: string;
   code: string;
   detail: string;
   instance: string;
   extra?: Record<string, unknown>;
-}): ProblemDetails {
+}): ProblemDetails => {
   return {
     type: `/errors/${args.code.toLowerCase().replaceAll('_', '-')}`,
     title: args.title,
@@ -27,4 +27,4 @@ export function buildProblem(args: {
     code: args.code,
     ...args.extra,
   };
-}
+};
