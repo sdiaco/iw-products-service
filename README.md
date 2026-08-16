@@ -1,6 +1,6 @@
 # iw-products-service
 
-A NestJS + Sequelize + MySQL HTTP service that manages products for an e-commerce platform: create, list, get, update stock, and delete, with concurrency-safe stock mutations and idempotent stock updates. Built as a take-home assessment.
+A NestJS + Sequelize + MySQL HTTP service that manages products for an e-commerce platform: create, list, get, update stock, and delete, with concurrency-safe stock mutations and idempotent stock updates.
 
 ## Prerequisites
 

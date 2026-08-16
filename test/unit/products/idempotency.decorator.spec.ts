@@ -1,4 +1,4 @@
-import { readIdempotencyKey } from '../../../src/products/controller/idempotency.decorator';
+import { readIdempotencyKey } from '../../../src/common/decorators/idempotency.decorator';
 import { ValidationFailedError } from '../../../src/common/errors/validation-failed.error';
 
 describe('readIdempotencyKey', () => {

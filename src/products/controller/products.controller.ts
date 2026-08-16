@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { ProductsService } from '../service/products.service';
-import { IdempotencyKey } from './idempotency.decorator';
+import { IdempotencyKey } from '../../common/decorators/idempotency.decorator';
 import { CreateProductDto } from './dto/create-product';
 import { ListProductsQuery } from './dto/list-products';
 import { ProductTokenParam } from './dto/product-token';
