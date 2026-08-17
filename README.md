@@ -29,13 +29,6 @@ Runs inside the container: format check → lint → type-check → unit tests �
 Interactive: [http://localhost:3000/docs](http://localhost:3000/docs)  
 Reference: [docs/api.md](docs/api.md)
 
-## Design decisions
-
-Two decisions the brief leaves open, chosen deliberately:
-
-- **Stock update uses a delta, not an absolute set.** A delta models the real event (a sale, a return) and makes atomicity and idempotency necessary rather than decorative; an absolute set cannot be made idempotent without knowing the value before the call.
-- **Pagination is page/size, not a cursor.** It is the shape a reader understands from the README without explanation, and `COUNT` is negligible at this scale.
-
 ## Sample requests
 
 ### POST /products — create
