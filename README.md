@@ -9,7 +9,7 @@ Docker (and Docker Compose v2). Nothing else.
 ## Run
 
 ```sh
-docker compose up
+docker compose up --build -d
 ```
 
 Starts MySQL on port 3307, runs migrations, seeds the catalogue, and starts the API on port 3000. Swagger is available at [http://localhost:3000/docs](http://localhost:3000/docs).
