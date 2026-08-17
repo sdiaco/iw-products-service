@@ -10,6 +10,7 @@
 | 6 | Atomic stock update | done | 2026-08-15 |
 | 7 | Idempotent stock requests | done | 2026-08-15 |
 | 8 | Delivery | done | 2026-08-15 |
+| 9 | Verification | done | 2026-08-15 |
 
 ## 1 — Engineering rules · 2026-08-14
 
@@ -175,3 +176,20 @@ Both read the actual source files to ensure accuracy. I created the Bruno
 collection manually and verified the full stack end-to-end.
 
 **Next** Panel preparation (local only, not committed).
+
+## 9 — Verification · 2026-08-15
+
+**Goal** Confirm the repository works from a clean clone with nothing installed.
+
+**Done** Cloned into a fresh directory, ran `docker compose up` and `make test`.
+All 73 tests green, all endpoints responding, seed data present. Exercised every
+endpoint manually via Bruno and Swagger to confirm the contract matches the
+documentation. Fixed a missing `.PHONY` entry that caused `make test` to skip
+when a `test/` directory exists.
+
+**Why** A project that does not start on the first try has a bug in its setup,
+not in its code. The clone test caught one.
+
+**AI** None — manual verification.
+
+**Next** Submit.
