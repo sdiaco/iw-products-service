@@ -1,0 +1,29 @@
+meta {
+  name: Update Stock
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/products/:productToken/stock
+  body: json
+  auth: none
+}
+
+params:path {
+  productToken: SKU-000003
+}
+
+headers {
+  Idempotency-Key: 12345678-b
+}
+
+body:json {
+  {
+    "delta": -6
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:3000
+}

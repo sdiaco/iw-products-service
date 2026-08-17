@@ -1,0 +1,9 @@
+pre-push:
+  parallel: false
+  commands:
+    # Both targets run inside the container, because the host's Node version is
+    # not the one the service ships with and a green run there proves less.
+    check:
+      run: make check
+    e2e:
+      run: make e2e
