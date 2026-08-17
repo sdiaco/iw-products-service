@@ -29,6 +29,15 @@ Runs inside the container: format check → lint → type-check → unit tests �
 Interactive: [http://localhost:3000/docs](http://localhost:3000/docs)  
 Reference: [docs/api.md](docs/api.md)
 
+## How it works
+
+One module, three layers: the controller validates input and shapes responses, the service holds the business rules and owns transactions, the repository talks to MySQL. Stock changes are atomic (one conditional `UPDATE`) and idempotent (a required `Idempotency-Key` header prevents double-application on retries). Errors are translated once into [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) `problem+json`. See [docs/architecture.md](docs/architecture.md) for the full picture.
+
+## Key decisions
+
+- **Stock update applies a delta** (not an absolute set) — it models the real event and makes the idempotency key necessary rather than decorative.
+- **Pagination uses page/size** — understood without explanation at this scale; cursor-based is documented as the next evolution.
+
 ## Sample requests
 
 ### POST /products — create
