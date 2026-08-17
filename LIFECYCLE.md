@@ -61,10 +61,9 @@ output.
 
 **Why** I ordered the slices so the repository is a valid submission from the
 end of the delete endpoint onward, and put idempotency last because it is the
-only part the brief does not ask for — if I run out of time it is the piece to
-drop, and I would rather drop it whole than deliver it half-built. Writing the
-code out in advance caught three things the design had missed, including that
-the service cannot import the ORM it needs for transactions.
+only part the brief does not ask for. Writing the code out in advance caught 
+three things the design had missed, including that the service cannot import 
+the ORM it needs for transactions.
 
 **AI** Claude drafted the plan from the design; I cut the parts that were
 gold-plating and set the slice order myself.
